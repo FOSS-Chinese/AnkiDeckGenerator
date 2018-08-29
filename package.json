@@ -1,0 +1,35 @@
+{
+  "name": "ankideckgenerator",
+  "version": "1.0.0",
+  "description": "Tool to generate extremely powerful Anki Decks.",
+  "main": "index.js",
+  "dependencies": {
+    "commander": "^2.17.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FOSS-Chinese/AnkiDeckGenerator.git"
+  },
+  "keywords": [
+    "anki",
+    "deck",
+    "generate",
+    "chinese",
+    "hanzi",
+    "stroke",
+    "order",
+    "examples",
+    "bootstrap",
+    "radicals",
+    "dictionary"
+  ],
+  "author": "FOSS-Chinese",
+  "bugs": {
+    "url": "https://github.com/FOSS-Chinese/AnkiDeckGenerator/issues"
+  },
+  "homepage": "https://github.com/FOSS-Chinese/AnkiDeckGenerator#readme"
+}
