@@ -1,6 +1,6 @@
 'use strict'
 
-const MakeMeAHanzi = require('./makeMeAHanzi')
+const MakeMeAHanzi = require('./MakeMeAHanzi')
 
 class AnkiDeckGenerator {
     constructor(conf={}) {
