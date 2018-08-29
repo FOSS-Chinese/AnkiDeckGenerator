@@ -1,0 +1,3 @@
+[submodule "submodules/makemeahanzi"]
+	path = submodules/makemeahanzi
+	url = https://github.com/T-vK/makemeahanzi.git
