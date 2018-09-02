@@ -3,19 +3,22 @@
 const MakeMeAHanzi = require('./MakeMeAHanzi')
 const sqlite3 = require('sqlite3')
 const crypto = require("crypto")
+const _ = require('lodash')
 
 class AnkiDeckGenerator {
-    constructor(deckFile, mmahConf={}) {
-        this.mmahConf = Object.assign({
+    constructor(apkgFile, tempDir='./anki-deck-generator-temp', mmahConf={}) {
+        this.mmahConf = _.merge({
             graphicsDataPath: './submodules/makemeahanzi/graphics.txt',
             dictPath: './submodules/makemeahanzi/dictionary.txt',
             animatedSvgsDir: './submodules/makemeahanzi/svgs',
             stillSvgsDir: './submodules/makemeahanzi/svgs-still'
         }, mmahConf)
         this.mmah = new MakeMeAHanzi(this.mmahConf)
-        this.deckFile = deckFile || './new-deck.apkg'
+        this.tempDir = tempDir
+        this.apkgFile = apkgFile || './new-deck.apkg'
     }
     init() {
+        this.deckFile = `${this.tempDir}/collection.anki2`
         return new Promise((resolve,reject) => {
             this.ankiDb = new sqlite3.Database(this.deckFile, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, err => { err ? reject(new Error(err)) : resolve() })
         }).then(() => {
@@ -204,91 +207,9 @@ class AnkiDeckGenerator {
                     "curModel": "1398130163168",
                     "collapseTime": 1200
                 }
-                const models = {
-                    "1342697561419": {
-                        "vers": [],
-                        "name": "Basic",
-                        "tags": [],
-                        "did": 1398130078204,
-                        "usn": -1,
-                        "req": [[0, "all", [0]]],
-                        "flds": [
-                            {
-                                "name": "Front",
-                                "rtl": false,
-                                "sticky": false,
-                                "media": [],
-                                "ord": 0,
-                                "font": "Arial",
-                                "size": 12
-                            }, {
-                                "name": "Back",
-                                "rtl": false,
-                                "sticky": false,
-                                "media": [],
-                                "ord": 1,
-                                "font": "Arial",
-                                "size": 12
-                            }
-                        ],
-                        "sortf": 0,
-                        "latexPre": "\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage{amssymb,amsmath}\n\\pagestyle{empty}\n\\setlength{\\parindent}{0in}\n\\begin{document}\n",
-                        "tmpls": [
-                            {
-                                "name": "Forward",
-                                "qfmt": "Template:Front",
-                                "did": null,
-                                "bafmt": "",
-                                "afmt": "Template:FrontSide\n\n    <hr id=answer/>\n\n{{Back}}",
-                                "ord": 0,
-                                "bqfmt": ""
-                            }
-                        ],
-                        "latexPost": "\\end{document}",
-                        "type": 0,
-                        "id": 1342697561419,
-                        "css": ".card {\n font-family: arial;\n font-size: 30px;\n text-align: center;\n color: black;\n background-color: white;\n}\n\n.card1 { background-color: #FFFFFF; }",
-                        "mod": 1398130117
-                    }
-                }
+                const models = {}
                 const decks = {}
-                const dconf = {
-                    "1": {
-                        "name": "Default",
-                        "replayq": true,
-                        "lapse": {
-                            "leechFails": 8,
-                            "minInt": 1,
-                            "delays": [10],
-                            "leechAction": 0,
-                            "mult": 0
-                        },
-                        "rev": {
-                            "perDay": 100,
-                            "fuzz": 0.05,
-                            "ivlFct": 1,
-                            "maxIvl": 36500,
-                            "ease4": 1.3,
-                            "bury": true,
-                            "minSpace": 1
-                        },
-                        "timer": 0,
-                        "maxTaken": 60,
-                        "usn": 0,
-                        "new": {
-                            "perDay": 20,
-                            "delays": [1, 10],
-                            "separate": true,
-                            "ints": [1, 4, 7],
-                            "initialFactor": 2500,
-                            "bury": true,
-                            "order": 1
-                        },
-                        "mod": 0,
-                        "id": 1,
-                        "autoplay": true
-                    }
-                }
+                const dconf = {}
                 const tags = {}
                 const crt = Math.round(Date.now()/1000)
                 const mod = Date.now()
@@ -299,7 +220,7 @@ class AnkiDeckGenerator {
                         ${crt},                       /* crt */
                         1398130163295,                /* mod */
                         1398130163168,                /* scm */
-                        1,                            /* ver */
+                        11,                           /* ver */
                         0,                            /* dty */
                         0,                            /* usn */
                         0,                            /* ls */
@@ -318,7 +239,7 @@ class AnkiDeckGenerator {
 
     addDeck(baseConf={}, advancedConf={}) {
         const id = Math.floor(Math.random() * 10000000000000)
-        baseConf = Object.assign({ // dconf entry
+        baseConf = _.merge({ // dconf entry
             name: "Default",         // name of deck
             extendRev: 50,           // extended review card limit (for custom study)
             usn: 0,                  // usn: Update sequence number: used in same way as other usn vales in db
@@ -335,7 +256,7 @@ class AnkiDeckGenerator {
             mod: Date.now(),         // last modification time
             desc: ""                 // deck description
         }, baseConf)
-        advancedConf = Object.assign({//
+        advancedConf = _.merge({//
             autoplay: true,           // whether the audio associated to a question should be played when the question is shown
             //dyn: true,              // Whether this deck is dynamic. Not present by default in decks.py
             id: id,                   // deck ID (automatically generated long). Not present by default in decks.py
@@ -406,7 +327,7 @@ class AnkiDeckGenerator {
                 flags: 0,
                 data: ""
             }
-            const noteCfg = Object.assign(noteCfg,defaultNodeCfg)
+            const noteCfg = _.merge(noteCfg,defaultNodeCfg)
             noteCfg.sfld = (!noteCfg.sfld && noteCfg.flds.length>0) ? nodeCfg.sfld=noteCfg.flds[0] : nodeCfg.sfld
             noteCfg.csum = parseInt(crypto.createHash('sha1').update(noteCfg.flds.length>0 ? noteCfg.flds[0] : '').digest('hex').substring(0,8))
             this.ankiDb.exec(`
@@ -419,29 +340,476 @@ class AnkiDeckGenerator {
                     ${noteCfg.usn},
                     ' ${noteCfg.tags.join(" ")} ',
                     '${nodeCfg.flds.join(String.fromCharCode(0x1f))}',
-                    'Bonjour',${noteCfg.csum},
+                    '${noteCfg.sfld}',
+                    ${noteCfg.csum},
                     ${noteCfg.flags},
                     '${noteCfg.data}'
                 );`, (err, row) => { err ? reject(new Error(err)) : resolve(row) }
             )
         })
     }
+
+    addCard(conf={}) {
+        return new Promise((resolve, reject) => {
+        const timestampNow = Math.round(Date.now()/1000)
+        const nid = Math.floor(Math.random() * 10000000000000)
+        conf = _.merge({ // dconf entry
+            id: timestampNow,
+            nid: nid,
+            did: 0, // deck id (required)
+            ord: 0,
+            mod: timestampNow,
+            usn: -1,
+            type: 0,
+            queue: 0,
+            due: 0,
+            ivl: 0,
+            factor: 0,
+            reps: 0,
+            lapses: 0,
+            odue: 0,
+            odid: 0,
+            flags: 0,
+            data: ''
+        }, baseConf)
+
+        this.ankiDb.exec(`
+            INSERT INTO cards
+            VALUES(
+                ${id},
+                ${nid},
+                ${did},
+                ${ord},
+                ${mod},
+                ${usn},
+                ${type},
+                ${queue},
+                ${due},
+                ${ivl},
+                ${factor},
+                ${reps},
+                ${lapses},
+                ${odue},
+                ${odid},
+                ${flags},
+                '${data}'
+            );
+        `, (err, row) => { err ? reject(new Error(err)) : resolve(row) }
+    }
+
+    addModel(model) {
+        model = _.merge({
+            vers: [],
+            name: "New Model",
+            tags: ["ke10"],
+            did: 0, // overwrite required (Long specifying the id of the deck that cards are added to by default)
+            usn: -1,
+            req: [ // Array of arrays describing which fields are required
+                   // for each card to be gArray of arrays describing which fields are required
+                for each card to be generated, looks like: [[0, "any", [0, 3, 6]]], this is required to display a templateenerated, looks like:
+                   // [[0, "any", [0, 3, 6]]], this is required to display a template)
+                [0, "any", [0, 1, 2, 3, 4, 5, 6]]
+            ],
+            flds: [
+
+            ]
+
+        }, model)
+
+
+
 /*
-    addCard() {
+Models JSONObjects
 
-    `
-        PRAGMA foreign_keys=OFF;
-        BEGIN TRANSACTION;
-        INSERT INTO cards VALUES(1398130110964,1398130088495,1398130078204,0,1398130110,-1,0,0,484332854,0,0,0,0,0,0,0,0,);
-        INSERT INTO cards VALUES(1398130117922,1398130111274,1398130078204,0,1398130117,-1,0,0,353754516,0,0,0,0,0,0,0,0,);
-        COMMIT;
-    `
+Here is an annotated description of the JSONObjects in the models field of the col table. Each object is the value of a key that's a model id (epoch time in milliseconds):
 
+{
+"model id (epoch time in milliseconds)" :
+  {
+    css : "CSS, shared for all templates",
+    did :
+        "Long specifying the id of the deck that cards are added to by default",
+    flds : [
+             "JSONArray containing object for each field in the model as follows:",
+             {
+               font : "display font",
+               media : "array of media. appears to be unused",
+               name : "field name",
+               ord : "ordinal of the field - goes from 0 to num fields -1",
+               rtl : "boolean, right-to-left script",
+               size : "font size",
+               sticky : "sticky fields retain the value that was last added
+                           when adding new notes"
+             }
+           ],
+    id : "model ID, matches notes.mid",
+    latexPost : "String added to end of LaTeX expressions (usually \\end{document})",
+    latexPre : "preamble for LaTeX expressions",
+    mod : "modification time in milliseconds",
+    name : "model name",
+    req : [
+            "Array of arrays describing which fields are required
+                for each card to be generated, looks like: [[0, "any", [0, 3, 6]]], this is required to display a template",
+            [
+              "the 'ord' value of the template object from the 'tmpls' array you are setting the required fields of",
+              '? string, "all" or "any"',
+              ["? another array of 'ord' values from field object you want to require from the 'flds' array"]
+            ]
+          ],
+    sortf : "Integer specifying which field is used for sorting in the browser",
+    tags : "Anki saves the tags of the last added note to the current model, use an empty array []",
+    tmpls : [
+              "JSONArray containing object of CardTemplate for each card in model",
+              {
+                afmt : "answer template string",
+                bafmt : "browser answer format:
+                          used for displaying answer in browser",
+                bqfmt : "browser question format:
+                          used for displaying question in browser",
+                did : "deck override (null by default)",
+                name : "template name",
+                ord : "template number, see flds",
+                qfmt : "question format string"
+              }
+            ],
+    type : "Integer specifying what type of model. 0 for standard, 1 for cloze",
+    usn : "usn: Update sequence number: used in same way as other usn vales in db",
+    vers : "Legacy version number (unused), use an empty array []"
+  }
+}
+
+Decks JSONObjects
+
+Here is an annotated description of the JSONObjects in the decks field of the col table:
+
+{
+    name: "name of deck",
+    extendRev: "extended review card limit (for custom study)",
+    usn: "usn: Update sequence number: used in same way as other usn vales in db",
+    collapsed: "true when deck is collapsed",
+    browserCollapsed: "true when deck collapsed in browser",
+    newToday: "two number. First one currently not used. Second is the negation (-)
+               of the number of new cards added today by custom study",
+    timeToday: "two number array used somehow for custom study. Currently unused in the code",
+    dyn: "1 if dynamic (AKA filtered) deck",
+    extendNew: "extended new card limit (for custom study)",
+    conf: "id of option group from dconf in `col` table",
+    revToday: "two number. First one currently not used. Second is the negation (-)
+               of the number of review cards added today by custom study",
+    lrnToday: "two number array used somehow for custom study. Currently unused in the code",
+    id: "deck ID (automatically generated long)",
+    mod: "last modification time",
+    desc: "deck description"
+}
+
+DConf JSONObjects
+
+Here is an annotated description of the JSONObjects in the dconf field of the col table:
+
+{
+"model id (epoch time in milliseconds)" :
+    {
+        autoplay : "whether the audio associated to a question should be
+played when the question is shown"
+        dyn : "Whether this deck is dynamic. Not present by default in decks.py"
+        id : "deck ID (automatically generated long). Not present by default in decks.py"
+        lapse : {
+            "The configuration for lapse cards."
+            delays : "The list of successive delay between the learning steps of the new cards, as explained in the manual."
+            leechAction : "What to do to leech cards. 0 for suspend, 1 for mark. Numbers according to the order in which the choices appear in aqt/dconf.ui"
+            leechFails : "the number of lapses authorized before doing leechAction."
+            minInt: "a lower limit to the new interval after a leech"
+            mult : "percent by which to multiply the current interval when a card goes has lapsed"
+        }
+        maxTaken : "The number of seconds after which to stop the timer"
+        mod : "Last modification time"
+        name : "The name of the configuration"
+        new : {
+            "The configuration for new cards."
+            bury : "Whether to bury cards related to new cards answered"
+            delays : "The list of successive delay between the learning steps of the new cards, as explained in the manual."
+            initialFactor : "The initial ease factor"
+            ints : "The list of delays according to the button pressed while leaving the learning mode. Good, easy and unused. In the GUI, the first two elements corresponds to Graduating Interval and Easy interval"
+            order : "In which order new cards must be shown. NEW_CARDS_RANDOM = 0 and NEW_CARDS_DUE = 1."
+            perDay : "Maximal number of new cards shown per day."
+            separate : "Seems to be unused in the code."
+
+        }
+        replayq : "whether the audio associated to a question should be played when the answer is shown"
+        rev : {
+            "The configuration for review cards."
+            bury : "Whether to bury cards related to new cards answered"
+            ease4 : "the number to add to the easyness when the easy button is pressed"
+            fuzz : "The new interval is multiplied by a random number between -fuzz and fuzz"
+            ivlFct : "multiplication factor applied to the intervals Anki generates"
+            maxIvl : "the maximal interval for review"
+            minSpace : "not currently used according to decks.py code's comment"
+            perDay : "Numbers of cards to review per day"
+        }
+        timer : "whether timer should be shown (1) or not (0)"
+        usn : "See usn in cards table for details."
+    }
+}
+*/
+        const model = {
+            "1535034969732": {
+                "vers": [],
+                "name": "A Course in Contemporary Contemporary - Listening",
+                "tags": ["ke10"],
+                "did": 1535040105445,
+                "usn": -1,
+                "req": [
+                    [0, "any", [0, 1, 2, 3, 4, 5, 6]]
+                ],
+                "flds": [{
+                    "name": "Hanzi",
+                    "rtl": false,
+                    "sticky": false,
+                    "media": [],
+                    "ord": 0,
+                    "font": "Liberation Sans",
+                    "size": 20
+                }, {
+                    "name": "Meaning",
+                    "rtl": false,
+                    "sticky": false,
+                    "media": [],
+                    "ord": 1,
+                    "font": "Arial",
+                    "size": 20
+                }, {
+                    "name": "Example",
+                    "rtl": false,
+                    "sticky": false,
+                    "media": [],
+                    "ord": 2,
+                    "font": "Liberation Sans",
+                    "size": 20
+                }, {
+                    "name": "Pinyin",
+                    "rtl": false,
+                    "sticky": false,
+                    "media": [],
+                    "ord": 3,
+                    "font": "Arial",
+                    "size": 20
+                }, {
+                    "name": "Color",
+                    "rtl": false,
+                    "sticky": false,
+                    "media": [],
+                    "ord": 4,
+                    "font": "Arial",
+                    "size": 20
+                }, {
+                    "name": "Sound",
+                    "rtl": false,
+                    "sticky": false,
+                    "media": [],
+                    "ord": 5,
+                    "font": "Arial",
+                    "size": 20
+                }, {
+                    "name": "Diagram",
+                    "media": [],
+                    "sticky": false,
+                    "rtl": false,
+                    "ord": 6,
+                    "font": "Arial",
+                    "size": 20
+                }],
+                "sortf": 0,
+                "latexPre": "\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amssymb,amsmath}\n\\pagestyle{empty}\n\\setlength{\\parindent}{0in}\n\\begin{document}\n",
+                "tmpls": [{
+                    "name": "Recognition Chinese -> English",
+                    "qfmt": "<div id=\"q\">{{Sound}}</div>\n<hr>\n<div id=\"hanziField\" class=\"headChinese\" style=\"display: none\" onclick=\"document.getElementById(this.id+'Alt').style.display='block'; this.style.display='none'; return false;\">{{Hanzi}}</div>\n<div id=\"hanziFieldAlt\" class=\"headChinese\"  style=\"display: block\" onclick=\"document.getElementById(this.id.replace('Alt','')).style.display='block'; this.style.display='none'; return false;\">Hanzi</div>\n\n\n<div id=\"pinyinField\" class=\"chinese\"  style=\"display: none\" onclick=\"document.getElementById(this.id+'Alt').style.display='block'; this.style.display='none'; return false;\">{{Pinyin}}<br/>{{Color}}<br/></div>\n<div id=\"pinyinFieldAlt\" class=\"chinese\"  style=\"display: block\" onclick=\"document.getElementById(this.id.replace('Alt','')).style.display='inline'; this.style.display='none'; return false;\">pinyin<br/>color</div>\n\n\n<br/>\naudio\n<br/>\n\n<div id=\"meaningField\" style=\"display: none\" onclick=\"document.getElementById(this.id+'Alt').style.display='block'; this.style.display='none'; return false;\">{{Meaning}}</br></div>\n<div id=\"meaningFieldAlt\"  style=\"display: block\" onclick=\"document.getElementById(this.id.replace('Alt','')).style.display='inline'; this.style.display='none'; return false;\">Meaning</div>\n<br/>\n\n<div id=\"exampleField\" style=\"display: none\" onclick=\"document.getElementById(this.id+'Alt').style.display='block'; this.style.display='none'; return false;\">{{Example}}<br/></div>\n<div id=\"exampleFieldAlt\"  style=\"display: block\" onclick=\"document.getElementById(this.id.replace('Alt','')).style.display='inline'; this.style.display='none'; return false;\">Example</div>\n<br/>\n\n\n<div id=\"diagramField\" style=\"display: none\" onclick=\"document.getElementById(this.id+'Alt').style.display='block'; this.style.display='none'; return false;\">{{Diagram}}</div>\n<div id=\"diagramFieldAlt\"  style=\"display: block\" onclick=\"document.getElementById(this.id.replace('Alt','')).style.display='inline'; this.style.display='none'; return false;\">Diagram</div>\n",
+                    "did": null,
+                    "bafmt": "",
+                    "afmt": "<div id=\"hanziField\" class=\"headChinese\">{{Hanzi}}</div>\n<div id=\"pinyinField\" class=\"chinese\">{{Pinyin}}</div>\n<div id=\"colorField\" class=\"chinese\">{{Color}}</div>\n<br/>\n{{Sound}}\n<div id=\"meaningField\" >{{Meaning}}</div><br/>\n<div id=\"exampleField\" >{{Example}}</div><br/>\n{{Diagram}}",
+                    "ord": 0,
+                    "bqfmt": ""
+                }],
+                "mod": 1535241961,
+                "latexPost": "\\end{document}",
+                "type": 0,
+                "id": 1535034969732,
+                "css": "",
+                "addon": "Chinese (basic)"
+            },
+            "1535034852520": {
+                "vers": [],
+                "name": "A Course in Contemporary Contemporary - Chinese to English",
+                "tags": ["ke10"],
+                "did": 1535040043730,
+                "usn": -1,
+                "req": [
+                    [0, "any", [0, 1, 2, 3, 5, 6]]
+                ],
+                "flds": [{
+                    "name": "Hanzi",
+                    "rtl": false,
+                    "sticky": false,
+                    "media": [],
+                    "ord": 0,
+                    "font": "Liberation Sans",
+                    "size": 20
+                }, {
+                    "name": "Meaning",
+                    "rtl": false,
+                    "sticky": false,
+                    "media": [],
+                    "ord": 1,
+                    "font": "Arial",
+                    "size": 20
+                }, {
+                    "name": "Example",
+                    "rtl": false,
+                    "sticky": false,
+                    "media": [],
+                    "ord": 2,
+                    "font": "Liberation Sans",
+                    "size": 20
+                }, {
+                    "name": "Pinyin",
+                    "rtl": false,
+                    "sticky": false,
+                    "media": [],
+                    "ord": 3,
+                    "font": "Arial",
+                    "size": 20
+                }, {
+                    "name": "Color",
+                    "rtl": false,
+                    "sticky": false,
+                    "media": [],
+                    "ord": 4,
+                    "font": "Arial",
+                    "size": 20
+                }, {
+                    "name": "Sound",
+                    "rtl": false,
+                    "sticky": false,
+                    "media": [],
+                    "ord": 5,
+                    "font": "Arial",
+                    "size": 20
+                }, {
+                    "name": "Diagram",
+                    "media": [],
+                    "sticky": false,
+                    "rtl": false,
+                    "ord": 6,
+                    "font": "Arial",
+                    "size": 20
+                }],
+                "sortf": 0,
+                "latexPre": "\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amssymb,amsmath}\n\\pagestyle{empty}\n\\setlength{\\parindent}{0in}\n\\begin{document}\n",
+                "tmpls": [{
+                    "name": "Chinese -> English",
+                    "qfmt": "<h1 id=\"loadingScreen\">Loading libraries...</h1>\n<div id=\"container\" class=\"container hide\">\n  <div class=\"panel-group\">\n    <div class=\"panel panel-primary\">\n      <div class=\"panel-heading\">\n        <h4 class=\"panel-title\">\n          <a data-toggle=\"collapse\" href=\"#hanzi-collapse\">H\u00e0nz\u00ec</a>\n        </h4>\n      </div>\n      <div id=\"hanzi-collapse\" class=\"panel-collapse collapse in\">\n        <div class=\"panel-body\">\n          <h1>{{Hanzi}}</h1>\n        </div>\n      </div>\n    </div>\n    <div class=\"panel panel-primary\">\n      <div class=\"panel-heading\">\n        <h4 class=\"panel-title\">\n          <a data-toggle=\"collapse\" href=\"#diagram-collapse\">Stroke order</a>\n        </h4>\n      </div>\n      <div id=\"diagram-collapse\" class=\"panel-collapse collapse\">\n        <div class=\"panel-body\">\n          <div id=\"diagram-container\">{{Diagram}}</div>\n        </div>\n      </div>\n    </div>\n    <div class=\"panel panel-primary\">\n      <div class=\"panel-heading\">\n        <h4 class=\"panel-title\">\n          <a data-toggle=\"collapse\" href=\"#pinyin-collapse\">P\u012bny\u012bn</a>\n        </h4>\n      </div>\n      <div id=\"pinyin-collapse\" class=\"panel-collapse collapse\">\n        <div class=\"panel-body\">\n          <h1>{{Pinyin}}</h1>\n        </div>\n      </div>\n    </div>\n    <div class=\"panel panel-primary\">\n      <div class=\"panel-heading\">\n        <h4 class=\"panel-title\">\n          <a data-toggle=\"collapse\" href=\"#english-collapse\">English translation</a>\n        </h4>\n      </div>\n      <div id=\"english-collapse\" class=\"panel-collapse collapse\">\n        <div class=\"panel-body\">\n          <h4>{{Meaning}}</h4>\n        </div>\n      </div>\n    </div>\n    <div class=\"panel panel-primary\">\n      <div class=\"panel-heading\">\n        <h4 class=\"panel-title\">\n          <a data-toggle=\"collapse\" href=\"#example-collapse\">Example</a>\n        </h4>\n      </div>\n      <div id=\"example-collapse\" class=\"panel-collapse collapse\">\n        <div class=\"panel-body\">\n          <h1>{{Example}}</h1>\n        </div>\n      </div>\n    </div>\n    <div class=\"panel panel-primary\">\n      <div class=\"panel-heading\">\n        <h4 class=\"panel-title\">\n          Chinese Audio\n        </h4>\n      </div>\n      <div class=\"panel-body\">\n        <div id=\"audio\">{{Sound}}</div>\n      </div>\n    </div>\n  </div>\n</div>\n\n\n\n<script>\n    function onLibsLoaded() {\n        $('#loadingScreen').addClass('hide');\n        $('#container').removeClass('hide');\n        //alert($('#audio').html());\n    }\n    function loadLibs(files, success_cb, fail_cb, check, maxTimeout) {\n        files.forEach(function(file){\n            var ext = file.split('.').slice(-1).pop();\n            if (ext === 'js') {\n                var script = document.createElement('script');\n                script.src = file;\n                document.getElementsByTagName('head')[0].appendChild(script);\n            } else if (ext === 'css') {\n                var css = document.createElement('link');\n                css.rel = 'stylesheet'\n                css.type = 'text/css';\n                css.href = file;\n                document.getElementsByTagName('head')[0].appendChild(css);\n            }\n        })\n        if (check === undefined) {\n            success_cb();\n        } else {\n            maxTimeout = maxTimeout || 5000\n            var t0 = Date.now();\n            function waitUntilLoaded(){\n                if (!check()) {\n                    if (Date.now() < t0+maxTimeout) {\n                        setTimeout(waitUntilLoaded,100);\n                    } else {\n                        fail_cb();\n                    }\n                } else {\n                    success_cb();\n                }\n            }\n            waitUntilLoaded();\n        }\n    }\n\n    function libCheck() {\n        return !!((typeof jQuery !== 'undefined' || window.jQuery) && typeof $().modal == 'function')\n    }\n\n    function onLibsFailed() {\n        document.getElementById('loadingScreen').innerHTML = 'Failed to load js/css libraries! Trying again...';\n        libInit();\n    }\n\n    function libInit() {\n        loadLibs(['_jquery-3.js','_bootstrap-3.js','_bootstrap-3.css','_bootstrap-3-theme.css'], onLibsLoaded, onLibsFailed, libCheck, 500);\n    }\n\n    window.onload = function(e) {\n        libInit();\n    }\n</script>\n",
+                    "did": null,
+                    "bafmt": "",
+                    "afmt": "<h1 id=\"loadingScreen\">Loading libraries...</h1>\n<div id=\"container\" class=\"container hide\">\n  <div class=\"panel-group\">\n    <div class=\"panel panel-primary\">\n      <div class=\"panel-heading\">\n        <h4 class=\"panel-title\">\n          <a data-toggle=\"collapse\" href=\"#hanzi-collapse\">H\u00e0nz\u00ec</a>\n        </h4>\n      </div>\n      <div id=\"hanzi-collapse\" class=\"panel-collapse collapse in\">\n        <div class=\"panel-body\">\n          <h1>{{Hanzi}}</h1>\n        </div>\n      </div>\n    </div>\n    <div class=\"panel panel-primary\">\n      <div class=\"panel-heading\">\n        <h4 class=\"panel-title\">\n          <a data-toggle=\"collapse\" href=\"#diagram-collapse\">Stroke order</a>\n        </h4>\n      </div>\n      <div id=\"diagram-collapse\" class=\"panel-collapse collapse\">\n        <div class=\"panel-body\">\n          <div id=\"diagram-container\">{{Diagram}}</div>\n        </div>\n      </div>\n    </div>\n    <div class=\"panel panel-primary\">\n      <div class=\"panel-heading\">\n        <h4 class=\"panel-title\">\n          <a data-toggle=\"collapse\" href=\"#pinyin-collapse\">P\u012bny\u012bn</a>\n        </h4>\n      </div>\n      <div id=\"pinyin-collapse\" class=\"panel-collapse collapse\">\n        <div class=\"panel-body\">\n          <h1>{{Pinyin}}</h1>\n        </div>\n      </div>\n    </div>\n    <div class=\"panel panel-primary\">\n      <div class=\"panel-heading\">\n        <h4 class=\"panel-title\">\n          <a data-toggle=\"collapse\" href=\"#english-collapse\">English translation</a>\n        </h4>\n      </div>\n      <div id=\"english-collapse\" class=\"panel-collapse collapse\">\n        <div class=\"panel-body\">\n          <h4>{{Meaning}}</h4>\n        </div>\n      </div>\n    </div>\n    <div class=\"panel panel-primary\">\n      <div class=\"panel-heading\">\n        <h4 class=\"panel-title\">\n          <a data-toggle=\"collapse\" href=\"#example-collapse\">Example</a>\n        </h4>\n      </div>\n      <div id=\"example-collapse\" class=\"panel-collapse collapse\">\n        <div class=\"panel-body\">\n          <h1>{{Example}}</h1>\n        </div>\n      </div>\n    </div>\n    <div class=\"panel panel-primary\">\n      <div class=\"panel-heading\">\n        <h4 class=\"panel-title\">\n          Chinese Audio\n        </h4>\n      </div>\n      <div class=\"panel-body\">\n        {{Sound}}\n      </div>\n    </div>\n  </div>\n</div>\n\n<script>\n    function onLibsLoaded() {\n        //alert(\"asd\");\n        $('#loadingScreen').addClass('hide');\n        $('#container').removeClass('hide');\n    }\n    function loadLibs(files, success_cb, fail_cb, check, maxTimeout) {\n        files.forEach(function(file){\n            var ext = file.split('.').slice(-1).pop();\n            if (ext === 'js') {\n                var script = document.createElement('script');\n                script.src = file;\n                document.getElementsByTagName('head')[0].appendChild(script);\n            } else if (ext === 'css') {\n                var css = document.createElement('link');\n                css.rel = 'stylesheet'\n                css.type = 'text/css';\n                css.href = file;\n                document.getElementsByTagName('head')[0].appendChild(css);\n            }\n        })\n        if (check === undefined) {\n            success_cb();\n        } else {\n            maxTimeout = maxTimeout || 5000\n            var t0 = Date.now();\n            function waitUntilLoaded(){\n                if (!check()) {\n                    if (Date.now() < t0+maxTimeout) {\n                        setTimeout(waitUntilLoaded,100);\n                    } else {\n                        fail_cb();\n                    }\n                } else {\n                    success_cb();\n                }\n            }\n            waitUntilLoaded();\n        }\n    }\n\n    function libCheck() {\n        return !!((typeof jQuery !== 'undefined' || window.jQuery) && typeof $().modal == 'function')\n    }\n\n    function onLibsFailed() {\n        document.getElementById('loadingScreen').innerHTML = 'Failed to load js/css libraries! Trying again...';\n        libInit();\n    }\n\n    function libInit() {\n        loadLibs(['_jquery-3.js','_bootstrap-3.js','_bootstrap-3.css','_bootstrap-3-theme.css'], onLibsLoaded, onLibsFailed, libCheck, 1000);\n    }\n\n    window.onload = function(e) {\n        libInit();\n    }\n\n</script>\n",
+                    "ord": 0,
+                    "bqfmt": ""
+                }],
+                "mod": 1535648341,
+                "latexPost": "\\end{document}",
+                "type": 0,
+                "id": 1535034852520,
+                "css": "#q{\n\tfont-size: 24px;\n}\n\n#meaningField{\n\tfont-size: 24px;\n}\n\n.card {\n font-family: arial;\n font-size: 20px;\n text-align: center;\n color: black;\n background-color: white;\n}\n.card { word-wrap: break-word; }\n.win .chinese { font-family: \"MS Mincho\", \"\uff2d\uff33 \u660e\u671d\"; }\n.mac .chinese { }\n.linux .chinese { font-family: \"Kochi Mincho\", \"\u6771\u98a8\u660e\u671d\"; }\n.mobile .chinese { font-family: \"Hiragino Mincho ProN\"; }\n.chinese { font-size: 30px;}\n.headChinese { font-size: 48px;}\n.comment {font-size: 15px; color:grey;}\n.tags {color:gray;text-align:right;font-size:10pt;}\n.note {color:gray;font-size:12pt;margin-top:20pt;}\n.hint {font-size:12pt;}\n\n\n.tone1 {color: red;}\n.tone2 {color: orange;}\n.tone3 {color: green;}\n.tone4 {color: blue;}\n.tone5 {color: gray;}\n\n#diagram-container {\n    height: 150px;\n    width: 100%;\n    text-align: left;\n    overflow-y: scroll\n}\n#diagram-container > img {\n    width: 50%;\n}",
+                "addon": "Chinese (basic)"
+            },
+            "1535034947930": {
+                "vers": [],
+                "name": "A Course in Contemporary Contemporary - English to Chinese",
+                "tags": ["ke10"],
+                "did": 1535039700267,
+                "usn": -1,
+                "req": [
+                    [0, "any", [0, 1, 2, 3, 4, 5, 6]]
+                ],
+                "flds": [{
+                    "name": "Hanzi",
+                    "rtl": false,
+                    "sticky": false,
+                    "media": [],
+                    "ord": 0,
+                    "font": "Liberation Sans",
+                    "size": 20
+                }, {
+                    "name": "Meaning",
+                    "rtl": false,
+                    "sticky": false,
+                    "media": [],
+                    "ord": 1,
+                    "font": "Arial",
+                    "size": 20
+                }, {
+                    "name": "Example",
+                    "rtl": false,
+                    "sticky": false,
+                    "media": [],
+                    "ord": 2,
+                    "font": "Liberation Sans",
+                    "size": 20
+                }, {
+                    "name": "Pinyin",
+                    "rtl": false,
+                    "sticky": false,
+                    "media": [],
+                    "ord": 3,
+                    "font": "Arial",
+                    "size": 20
+                }, {
+                    "name": "Color",
+                    "rtl": false,
+                    "sticky": false,
+                    "media": [],
+                    "ord": 4,
+                    "font": "Arial",
+                    "size": 20
+                }, {
+                    "name": "Sound",
+                    "rtl": false,
+                    "sticky": false,
+                    "media": [],
+                    "ord": 5,
+                    "font": "Arial",
+                    "size": 20
+                }, {
+                    "name": "Diagram",
+                    "media": [],
+                    "sticky": false,
+                    "rtl": false,
+                    "ord": 6,
+                    "font": "Arial",
+                    "size": 20
+                }],
+                "sortf": 0,
+                "addon": "Chinese (basic)",
+                "latexPre": "\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amssymb,amsmath}\n\\pagestyle{empty}\n\\setlength{\\parindent}{0in}\n\\begin{document}\n",
+                "tmpls": [{
+                    "name": "English -> Chinese",
+                    "qfmt": "<div id=\"q\">{{Meaning}}</div>\n<hr>\n<div id=\"hanziField\" class=\"headChinese\" style=\"display: none\" onclick=\"document.getElementById(this.id+'Alt').style.display='block'; this.style.display='none'; return false;\">{{Hanzi}}</div>\n<div id=\"hanziFieldAlt\" class=\"headChinese\"  style=\"display: block\" onclick=\"document.getElementById(this.id.replace('Alt','')).style.display='block'; this.style.display='none'; return false;\">Hanzi</div>\n\n\n<div id=\"pinyinField\" class=\"chinese\"  style=\"display: none\" onclick=\"document.getElementById(this.id+'Alt').style.display='block'; this.style.display='none'; return false;\">{{Pinyin}}<br/>{{Color}}<br/></div>\n<div id=\"pinyinFieldAlt\" class=\"chinese\"  style=\"display: block\" onclick=\"document.getElementById(this.id.replace('Alt','')).style.display='inline'; this.style.display='none'; return false;\">pinyin<br/>color</div>\n\n\n<br/>\n{{Sound}}\n<br/>\n\n<div id=\"meaningField\" style=\"display: none\" onclick=\"document.getElementById(this.id+'Alt').style.display='block'; this.style.display='none'; return false;\">{{Meaning}}</br></div>\n<div id=\"meaningFieldAlt\"  style=\"display: block\" onclick=\"document.getElementById(this.id.replace('Alt','')).style.display='inline'; this.style.display='none'; return false;\">Meaning</div>\n<br/>\n\n<div id=\"exampleField\" style=\"display: none\" onclick=\"document.getElementById(this.id+'Alt').style.display='block'; this.style.display='none'; return false;\">{{Example}}<br/></div>\n<div id=\"exampleFieldAlt\"  style=\"display: block\" onclick=\"document.getElementById(this.id.replace('Alt','')).style.display='inline'; this.style.display='none'; return false;\">Example</div>\n<br/>\n\n\n<div id=\"diagramField\" style=\"display: none\" onclick=\"document.getElementById(this.id+'Alt').style.display='block'; this.style.display='none'; return false;\">{{Diagram}}</div>\n<div id=\"diagramFieldAlt\"  style=\"display: block\" onclick=\"document.getElementById(this.id.replace('Alt','')).style.display='inline'; this.style.display='none'; return false;\">Diagram</div>\n",
+                    "did": null,
+                    "bafmt": "",
+                    "afmt": "<div id=\"hanziField\" class=\"headChinese\">{{Hanzi}}</div>\n<div id=\"pinyinField\" class=\"chinese\">{{Pinyin}}</div>\n<div id=\"colorField\" class=\"chinese\">{{Color}}</div>\n<br/>\n{{Sound}}\n<div id=\"meaningField\" >{{Meaning}}</div><br/>\n<div id=\"exampleField\" >{{Example}}</div><br/>\n{{Diagram}}",
+                    "ord": 0,
+                    "bqfmt": ""
+                }],
+                "latexPost": "\\end{document}",
+                "type": 0,
+                "id": 1535034947930,
+                "css": "#q{\n\tfont-size: 24px;\n}\n\n#meaningField{\n\tfont-size: 24px;\n}\n\n.card {\n font-family: arial;\n font-size: 20px;\n text-align: center;\n color: black;\n background-color: white;\n}\n.card { word-wrap: break-word; }\n.win .chinese { font-family: \"MS Mincho\", \"\uff2d\uff33 \u660e\u671d\"; }\n.mac .chinese { }\n.linux .chinese { font-family: \"Kochi Mincho\", \"\u6771\u98a8\u660e\u671d\"; }\n.mobile .chinese { font-family: \"Hiragino Mincho ProN\"; }\n.chinese { font-size: 30px;}\n.headChinese { font-size: 48px;}\n.comment {font-size: 15px; color:grey;}\n.tags {color:gray;text-align:right;font-size:10pt;}\n.note {color:gray;font-size:12pt;margin-top:20pt;}\n.hint {font-size:12pt;}\n\n\n.tone1 {color: red;}\n.tone2 {color: orange;}\n.tone3 {color: green;}\n.tone4 {color: blue;}\n.tone5 {color: gray;}\n",
+                "mod": 1535242454
+            }
+        }
     }
 
     addMedia(files) {
 
-    }*/
+    }
 }
 
 module.exports = AnkiDeckGenerator
