@@ -19,7 +19,7 @@ program
         cmd.deckDescription = cmd.deckDescription || "A new deck"
         let apkg
         fs.emptyDir(cmd.tempFolder).then(() => {
-            apkg = new AnkiDeckGenerator(`${cmd.tempFolder}/${cmd.deckName}.anki2`)
+            apkg = new AnkiDeckGenerator(cmd.deckName, cmd.tempFolder)
         }).then(() => {
             return apkg.init()
         }).then(() => {
@@ -28,18 +28,20 @@ program
                 desc: cmd.deckDescription
             })
         }).then(() => {
+            return fs.writeFile(`${cmd.tempFolder}/media`, '{}')
+        }).then(() => {
             return fs.readdir(cmd.tempFolder)
         }).then(files => {
             const apkgArchive = new JSZip()
             const filepathArr = files.map(filename=>`${cmd.tempFolder}/${filename}`)
-            filepathArr.forEach(filepath => {
-                console.log(filepath)
-                apkgArchive.file(filepath, CONTENT) // <-- TODO! https://stuk.github.io/jszip/documentation/api_jszip/generate_async.html
-            })
-            return apkgArchive.generateAsync({type:"uint8array"})
+            for (const filepath of filepathArr) {
+                apkgArchive.file(filepath, fs.createReadStream(filepath))
+            }
+            return apkgArchive.folder(cmd.tempFolder).generateAsync({type:"uint8array"})
         }).then(content => {
-            console.log(content)
             return fs.writeFile(apkgFile, content)
+        }).then(content => {
+            return fs.remove(cmd.tempFolder)
         }).then(() => {
             console.log("Done!")
         }).catch(console.error)
