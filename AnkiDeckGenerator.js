@@ -204,7 +204,7 @@ class AnkiDeckGenerator {
                     "newBury": true,
                     "newSpread": 0,
                     "dueCounts": true,
-                    "curModel": "1398130163168",
+                    "curModel": null,
                     "collapseTime": 1200
                 }
                 const models = {}
@@ -231,7 +231,7 @@ class AnkiDeckGenerator {
                         '${JSON.stringify(tags)}'     /* tags */
                     );
                 `
-                this.ankiDb.exec(collectionSetupSql, (err, row) => { err ? reject(new Error(err)) : resolve(row) })
+                this.ankiDb.exec(collectionSetupSql, (err, row) => { err ? reject(new Error(err)) : resolve({conf,crt,mod,scm}) })
             })
         })
     }
@@ -306,7 +306,7 @@ class AnkiDeckGenerator {
                         decks='${JSON.stringify(decks)}',
                         dconf='${JSON.stringify(dconf)}'
                     ;
-                `, (err, row) => { err ? reject(new Error(err)) : resolve(row) })
+                `, (err, row) => { err ? reject(new Error(err)) : resolve({baseConf,advancedConf}) })
             })
         })
     }
@@ -344,60 +344,92 @@ class AnkiDeckGenerator {
                     ${noteCfg.csum},
                     ${noteCfg.flags},
                     '${noteCfg.data}'
-                );`, (err, row) => { err ? reject(new Error(err)) : resolve(row) }
+                );`, (err, row) => { err ? reject(new Error(err)) : resolve(noteCfg) }
             )
         })
     }
 
     addCard(conf={}) {
         return new Promise((resolve, reject) => {
-        const timestampNow = Math.round(Date.now()/1000)
-        const nid = Math.floor(Math.random() * 10000000000000)
-        conf = _.merge({ // dconf entry
-            id: timestampNow,
-            nid: nid,
-            did: 0, // deck id (required)
-            ord: 0,
-            mod: timestampNow,
-            usn: -1,
-            type: 0,
-            queue: 0,
-            due: 0,
-            ivl: 0,
-            factor: 0,
-            reps: 0,
-            lapses: 0,
-            odue: 0,
-            odid: 0,
-            flags: 0,
-            data: ''
-        }, baseConf)
+            const timestampNow = Math.round(Date.now()/1000)
+            const nid = Math.floor(Math.random() * 10000000000000)
+            conf = _.merge({ // dconf entry
+                id: timestampNow,
+                nid: nid,
+                did: 0, // deck id (required)
+                ord: 0,
+                mod: timestampNow,
+                usn: -1,
+                type: 0,
+                queue: 0,
+                due: 0,
+                ivl: 0,
+                factor: 0,
+                reps: 0,
+                lapses: 0,
+                odue: 0,
+                odid: 0,
+                flags: 0,
+                data: ''
+            }, baseConf)
 
-        this.ankiDb.exec(`
-            INSERT INTO cards
-            VALUES(
-                ${id},
-                ${nid},
-                ${did},
-                ${ord},
-                ${mod},
-                ${usn},
-                ${type},
-                ${queue},
-                ${due},
-                ${ivl},
-                ${factor},
-                ${reps},
-                ${lapses},
-                ${odue},
-                ${odid},
-                ${flags},
-                '${data}'
-            );
-        `, (err, row) => { err ? reject(new Error(err)) : resolve(row) }
+            this.ankiDb.exec(`
+                INSERT INTO cards
+                VALUES(
+                    ${id},
+                    ${nid},
+                    ${did},
+                    ${ord},
+                    ${mod},
+                    ${usn},
+                    ${type},
+                    ${queue},
+                    ${due},
+                    ${ivl},
+                    ${factor},
+                    ${reps},
+                    ${lapses},
+                    ${odue},
+                    ${odid},
+                    ${flags},
+                    '${data}'
+                );
+            `, (err, row) => { err ? reject(new Error(err)) : resolve(conf) })
+        })
     }
 
     addModel(model) {
+        const timestampNow = Math.round(Date.now()/1000)
+
+        for ([fld,i] of model.flds.entries()) {
+            fld = _.merge({
+                font: "Liberation Sans",
+                media: [],
+                name: null, // overwrite recommended
+                ord: i,
+                rtl: false,
+                size: 20,
+                sticky: false
+            }, fld)
+        }
+
+        for ([tmpl,i] of model.tmpls.entries()) {
+            tmpl = _.merge({
+                name: "Template name", // overwrite recommended
+                qfmt: "", // overwrite recommended
+                did: null,
+                bafmt: "",
+                afmt: "", // overwrite recommended
+                ord: i,
+                bqfmt: ""
+            }, tmpl)
+        }
+
+        if (!model.req) {
+            const ords = model.flds.map(fld=>fld.ord)
+            model.req = [[ 0, "any", ords]]
+        }
+
         model = _.merge({
             vers: [],
             name: "New Model",
@@ -405,162 +437,30 @@ class AnkiDeckGenerator {
             did: 0, // overwrite required (Long specifying the id of the deck that cards are added to by default)
             usn: -1,
             req: [ // Array of arrays describing which fields are required
-                   // for each card to be gArray of arrays describing which fields are required
-                for each card to be generated, looks like: [[0, "any", [0, 3, 6]]], this is required to display a templateenerated, looks like:
-                   // [[0, "any", [0, 3, 6]]], this is required to display a template)
-                [0, "any", [0, 1, 2, 3, 4, 5, 6]]
+                   // for each card to be generated, looks like: [[0, "any", [0, 3, 6]]],
+                   // this is required to display a template",
+                [0, "any",
+                  // the 'ord' value of the template object from the 'tmpls' array you are setting the required fields of",
+                  // '? string, "all" or "any"',
+                    [ //"? another array of 'ord' values from field object you want to require from the 'flds' array"
+                        //0, 1, 2, 3, 4, 5, 6
+                    ]
+                ]
             ],
-            flds: [
-
-            ]
-
+            flds: [], // JSONArray containing object for each field in the model
+            sortf: 0,
+            latexPre: "\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amssymb,amsmath}\n\\pagestyle{empty}\n\\setlength{\\parindent}{0in}\n\\begin{document}\n",
+            tmpls: [], // "JSONArray containing object of CardTemplate for each card in model"
+            mod: timestampNow,
+            latexPost: "\\end{document}",
+            type: 0,
+            id: 0, // overwrite required (Long specifying the id of the deck that cards are added to by default)
+            css: "",
+            addon: "Chinese (basic)"
         }, model)
 
-
-
-/*
-Models JSONObjects
-
-Here is an annotated description of the JSONObjects in the models field of the col table. Each object is the value of a key that's a model id (epoch time in milliseconds):
-
-{
-"model id (epoch time in milliseconds)" :
-  {
-    css : "CSS, shared for all templates",
-    did :
-        "Long specifying the id of the deck that cards are added to by default",
-    flds : [
-             "JSONArray containing object for each field in the model as follows:",
-             {
-               font : "display font",
-               media : "array of media. appears to be unused",
-               name : "field name",
-               ord : "ordinal of the field - goes from 0 to num fields -1",
-               rtl : "boolean, right-to-left script",
-               size : "font size",
-               sticky : "sticky fields retain the value that was last added
-                           when adding new notes"
-             }
-           ],
-    id : "model ID, matches notes.mid",
-    latexPost : "String added to end of LaTeX expressions (usually \\end{document})",
-    latexPre : "preamble for LaTeX expressions",
-    mod : "modification time in milliseconds",
-    name : "model name",
-    req : [
-            "Array of arrays describing which fields are required
-                for each card to be generated, looks like: [[0, "any", [0, 3, 6]]], this is required to display a template",
-            [
-              "the 'ord' value of the template object from the 'tmpls' array you are setting the required fields of",
-              '? string, "all" or "any"',
-              ["? another array of 'ord' values from field object you want to require from the 'flds' array"]
-            ]
-          ],
-    sortf : "Integer specifying which field is used for sorting in the browser",
-    tags : "Anki saves the tags of the last added note to the current model, use an empty array []",
-    tmpls : [
-              "JSONArray containing object of CardTemplate for each card in model",
-              {
-                afmt : "answer template string",
-                bafmt : "browser answer format:
-                          used for displaying answer in browser",
-                bqfmt : "browser question format:
-                          used for displaying question in browser",
-                did : "deck override (null by default)",
-                name : "template name",
-                ord : "template number, see flds",
-                qfmt : "question format string"
-              }
-            ],
-    type : "Integer specifying what type of model. 0 for standard, 1 for cloze",
-    usn : "usn: Update sequence number: used in same way as other usn vales in db",
-    vers : "Legacy version number (unused), use an empty array []"
-  }
-}
-
-Decks JSONObjects
-
-Here is an annotated description of the JSONObjects in the decks field of the col table:
-
-{
-    name: "name of deck",
-    extendRev: "extended review card limit (for custom study)",
-    usn: "usn: Update sequence number: used in same way as other usn vales in db",
-    collapsed: "true when deck is collapsed",
-    browserCollapsed: "true when deck collapsed in browser",
-    newToday: "two number. First one currently not used. Second is the negation (-)
-               of the number of new cards added today by custom study",
-    timeToday: "two number array used somehow for custom study. Currently unused in the code",
-    dyn: "1 if dynamic (AKA filtered) deck",
-    extendNew: "extended new card limit (for custom study)",
-    conf: "id of option group from dconf in `col` table",
-    revToday: "two number. First one currently not used. Second is the negation (-)
-               of the number of review cards added today by custom study",
-    lrnToday: "two number array used somehow for custom study. Currently unused in the code",
-    id: "deck ID (automatically generated long)",
-    mod: "last modification time",
-    desc: "deck description"
-}
-
-DConf JSONObjects
-
-Here is an annotated description of the JSONObjects in the dconf field of the col table:
-
-{
-"model id (epoch time in milliseconds)" :
-    {
-        autoplay : "whether the audio associated to a question should be
-played when the question is shown"
-        dyn : "Whether this deck is dynamic. Not present by default in decks.py"
-        id : "deck ID (automatically generated long). Not present by default in decks.py"
-        lapse : {
-            "The configuration for lapse cards."
-            delays : "The list of successive delay between the learning steps of the new cards, as explained in the manual."
-            leechAction : "What to do to leech cards. 0 for suspend, 1 for mark. Numbers according to the order in which the choices appear in aqt/dconf.ui"
-            leechFails : "the number of lapses authorized before doing leechAction."
-            minInt: "a lower limit to the new interval after a leech"
-            mult : "percent by which to multiply the current interval when a card goes has lapsed"
-        }
-        maxTaken : "The number of seconds after which to stop the timer"
-        mod : "Last modification time"
-        name : "The name of the configuration"
-        new : {
-            "The configuration for new cards."
-            bury : "Whether to bury cards related to new cards answered"
-            delays : "The list of successive delay between the learning steps of the new cards, as explained in the manual."
-            initialFactor : "The initial ease factor"
-            ints : "The list of delays according to the button pressed while leaving the learning mode. Good, easy and unused. In the GUI, the first two elements corresponds to Graduating Interval and Easy interval"
-            order : "In which order new cards must be shown. NEW_CARDS_RANDOM = 0 and NEW_CARDS_DUE = 1."
-            perDay : "Maximal number of new cards shown per day."
-            separate : "Seems to be unused in the code."
-
-        }
-        replayq : "whether the audio associated to a question should be played when the answer is shown"
-        rev : {
-            "The configuration for review cards."
-            bury : "Whether to bury cards related to new cards answered"
-            ease4 : "the number to add to the easyness when the easy button is pressed"
-            fuzz : "The new interval is multiplied by a random number between -fuzz and fuzz"
-            ivlFct : "multiplication factor applied to the intervals Anki generates"
-            maxIvl : "the maximal interval for review"
-            minSpace : "not currently used according to decks.py code's comment"
-            perDay : "Numbers of cards to review per day"
-        }
-        timer : "whether timer should be shown (1) or not (0)"
-        usn : "See usn in cards table for details."
-    }
-}
-*/
-        const model = {
+        const aaaaaa = {
             "1535034969732": {
-                "vers": [],
-                "name": "A Course in Contemporary Contemporary - Listening",
-                "tags": ["ke10"],
-                "did": 1535040105445,
-                "usn": -1,
-                "req": [
-                    [0, "any", [0, 1, 2, 3, 4, 5, 6]]
-                ],
                 "flds": [{
                     "name": "Hanzi",
                     "rtl": false,
@@ -805,6 +705,20 @@ played when the question is shown"
                 "mod": 1535242454
             }
         }
+
+        return new Promise((resolve, reject) => {
+            this.ankiDb.get(`SELECT models FROM col;`, (err, row) => { err ? reject(new Error(err)) : resolve(row) })
+        }).then(col => {
+            return new Promise((resolve, reject) => {
+                let models = JSON.parse(col.models)
+                models[timestampNow] = model
+                this.ankiDb.exec(`
+                    UPDATE col SET
+                        models='${JSON.stringify(models)}'
+                    ;
+                `, (err, row) => { err ? reject(new Error(err)) : resolve(row) })
+            })
+        })
     }
 
     addMedia(files) {
