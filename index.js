@@ -116,7 +116,7 @@ async function autoGenerate(apkgFile, cmd) {
         collapsablePanels += generateCollapsablePanel(field.displayName, content, i===0)
     }
 
-    const templateHtml = `
+    const answerTemplateHtml = `
         <div id="container" class="container">
           <div class="panel-group">
             ${collapsablePanels}
@@ -146,13 +146,20 @@ async function autoGenerate(apkgFile, cmd) {
             })
         });
         </script>
-
+    `
+    const questionTemplate = `
+        <script>
+            setTimeout(function(){
+                if (typeof (py) !== "undefined") py.link('ans');
+                if (typeof (pycmd) !== "undefined") pycmd('ans');
+            },100)
+        </script>
     `
 
     const templates = [{
         name: "fossChineseTemplate",
-        qfmt: templateHtml,
-        afmt: templateHtml
+        qfmt: questionTemplate,
+        afmt: answerTemplateHtml
     }]
 
     const model = await apkg.addModel({
