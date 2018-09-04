@@ -4,6 +4,7 @@ const MakeMeAHanzi = require('./MakeMeAHanzi')
 const sqlite3 = require('sqlite3')
 const crypto = require("crypto")
 const _ = require('lodash')
+const fs = require('fs-extra')
 
 class AnkiDeckGenerator {
     constructor(apkgFile, tempDir='./anki-deck-generator-temp', mmahConf={}) {
@@ -16,9 +17,10 @@ class AnkiDeckGenerator {
         this.mmah = new MakeMeAHanzi(this.mmahConf)
         this.tempDir = tempDir
         this.apkgFile = apkgFile || './new-deck.apkg'
+        this.deckFile = `${this.tempDir}/collection.anki2`
+        this.mediaFile = `${this.tempDir}/media`
     }
     init() {
-        this.deckFile = `${this.tempDir}/collection.anki2`
         return new Promise((resolve,reject) => {
             this.ankiDb = new sqlite3.Database(this.deckFile, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, err => { err ? reject(new Error(err)) : resolve() })
         }).then(() => {
@@ -314,7 +316,7 @@ class AnkiDeckGenerator {
     addModel(model={}) {
         const timestampNow = Math.round(Date.now()/1000)
 
-        for (let [fld,i] of model.flds.entries()) {
+        for (let [i,fld] of model.flds.entries()) {
             model.flds[i] = _.merge({
                 name: null,              // recommendation: overwrite (optional)
                 font: "Liberation Sans", // recommendation: leave as is []
@@ -326,7 +328,7 @@ class AnkiDeckGenerator {
             }, fld)
         }
 
-        for (let [tmpl,i] of model.tmpls.entries()) {
+        for (let [i,tmpl] of model.tmpls.entries()) {
             model.tmpls[i] = _.merge({
                 name: "Template name", // recommendation: overwrite (REQUIRED)
                 qfmt: "",              // recommendation: overwrite (optional)
@@ -348,7 +350,19 @@ class AnkiDeckGenerator {
             did: 0,            // recommendation: overwrite (REQUIRED) [(Long specifying the id of the deck that cards are added to by default)
             flds: [],          // recommendation: overwrite (REQUIRED) [JSONArray containing object for each field in the model
             tmpls: [],         // recommendation: overwrite (REQUIRED) ["JSONArray containing object of CardTemplate for each card in model"
-            css: "",           // recommendation: overwrite (optional)
+            css: `             // recommendation: overwrite (optional)
+                .card {
+                    font-family: arial;
+                    font-size: 20px;
+                    text-align: center;
+                    color: black;
+                    background-color: white;
+                }
+                .cloze {
+                    font-weight: bold;
+                    color: blue;
+                }
+            `,
             tags: ["ke10"],    // recommendation: ?
             usn: -1,           // recommendation: ?
             req: [ // recommendation: ?
@@ -387,7 +401,7 @@ class AnkiDeckGenerator {
             })
         }).then(()=>{
             return new Promise((resolve, reject) => {
-                this.ankiDb.get(`SELECT models FROM col;`, (err, row) => { err ? reject(new Error(err)) : resolve(JSON.parse(row.models)) })
+                this.ankiDb.get(`SELECT models FROM col;`, (err, row) => { err ? reject(new Error(err)) : resolve(JSON.parse(row.models)[timestampNow]) })
             })
         })
     }
@@ -424,7 +438,7 @@ class AnkiDeckGenerator {
                     ${noteCfg.mod},
                     ${noteCfg.usn},
                     ' ${noteCfg.tags.join(" ")} ',
-                    '${noteCfg.flds.join(String.fromCharCode(32)).replace(/%/g,"!%").replace(/'/g,"%")}',
+                    '${noteCfg.flds.join(String.fromCharCode(0x1f)).replace(/%/g,"!%").replace(/'/g,"%")}',
                     '${noteCfg.sfld}',
                     ${noteCfg.csum},
                     ${noteCfg.flags},
@@ -485,8 +499,21 @@ class AnkiDeckGenerator {
         })
     }
 
-    addMedia(files) {
-        // TODO: implementation
+    async addMedia(files) {
+        const media = await fs.readJSON(this.mediaFile)
+        let maxIndex
+        try {
+            maxIndex = Object.keys(media).reduce(function(a, b){return parseInt(a,10) > parseInt(b,10) ? a : b})
+        } catch {
+            maxIndex = 0
+        }
+        for (const [i,file] of files.entries()) {
+            maxIndex++
+            const filename = file.split(/(\\|\/)/g).pop()
+            await fs.copy(file,`${this.tempDir}/${maxIndex}`)
+            media[maxIndex.toString()] = filename
+        }
+        return await fs.writeJSON(this.mediaFile, media)
     }
 }
 
