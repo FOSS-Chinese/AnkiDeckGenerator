@@ -21,144 +21,207 @@ program
     .option('-n, --deck-name <string>', 'Name of the deck to be created')
     .option('-d, --deck-description <string>', 'Name of the deck to be created')
     .option('-t, --temp-folder [folder-path]', 'Folder to be used/created for temporary files')
+    .option('-l, --libs-folder [folder-path]', 'Folder holding libraries for template')
     .action((apkgFile, cmd) => {
-        cmd.tempFolder = cmd.tempFolder || './anki-deck-generator-temp'
-        cmd.deckName = cmd.deckName || "NewDeck"
-        cmd.deckDescription = cmd.deckDescription || "A new deck"
-        let apkg
-        apkg = new AnkiDeckGenerator(cmd.deckName, cmd.tempFolder)
+        autoGenerate(apkgFile, cmd).then(console.log).catch(err=>console.error(new Error(err)))
+    })
+program.parse(process.argv)
 
-        const fields = [
-            {
-                name: "hanzi"
-            }, {
-                name: "english"
-            }, {
-                name: "pinyin"
-            }, {
-                name: "decomposition"
-            }, {
-                name: "etymologyType"
-            }, {
-                name: "etymologyHint"
-            }, {
-                name: "etymologyPhonetic"
-            }, {
-                name: "etymologySemantic"
-            }, {
-                name: "radical"
-            }, {
-                name: "charCode"
-            }, {
-                name: "animatedSvg"
-            }, {
-                name: "stillSvg"
-            }
-        ]
-        let wordList = {}
-        let vocData = {}
-        let addedDecks = []
-        let addedModels = []
-        let addedNotes = []
-        let addedCards = []
-        fs.emptyDir(cmd.tempFolder).then(() => {
-            return fs.readFile(cmd.inputFileChinese,'utf8')
-        }).then(fileContents => {
-            wordList = fileContents.split(/\r?\n/)
-            return apkg.init()
-        }).then(fileContents => {
-            return apkg.mmah.getCharData(wordList)
-        }).then(vocDataObj => {
-            vocData = vocDataObj
+async function autoGenerate(apkgFile, cmd) {
+    cmd.tempFolder = cmd.tempFolder || './anki-deck-generator-temp'
+    cmd.deckName = cmd.deckName || "NewDeck"
+    cmd.deckDescription = cmd.deckDescription || "A new deck"
+    cmd.libs = cmd.libs || "./libs"
+    let apkg
+    apkg = new AnkiDeckGenerator(cmd.deckName, cmd.tempFolder)
 
-            return apkg.addDeck({
-                name: cmd.deckName,
-                desc: cmd.deckDescription
-            })
-        }).then(deck => {
-            addedDecks.push(deck)
+    const fields = [
+        {
+            name: "hanzi",
+            displayName: "Hànzì",
+            html: `<h1>{{hanzi}}</h1>`
+        }, {
+            name: "english",
+            displayName: "English"
+        }, {
+            name: "pinyin",
+            displayName: "Pīnyīn",
+            html: `<h1>{{pinyin}}</h1>`
+        }, {
+            name: "decomposition",
+            displayName: "Decomposition"
+        }, {
+            name: "etymologyType",
+            displayName: "Etymology: Type"
+        }, {
+            name: "etymologyHint",
+            displayName: "Etymology: Hint"
+        }, {
+            name: "etymologyPhonetic",
+            displayName: "Etymology: Phonetic"
+        }, {
+            name: "etymologySemantic",
+            displayName: "Etymology: Semantic"
+        }, {
+            name: "radical",
+            displayName: "Radical"
+        }, {
+            name: "charCode",
+            displayName: "Char Code"
+        }, {
+            name: "stillSvg",
+            displayName: "Stroke Diagram",
+            html: `<div id="diagram-container">{{stillSvg}}</div>`
+        }
+    ]
 
-            const templates = [{
-                name: "fossChineseTemplate",
-                // TODO: read HTML from file, also load bootstrap, jquery etc src and embed em
-                qfmt: "{{hanzi}} [{{pinyin}}]",
-                afmt: "{{english}}"
-            }]
+    await fs.emptyDir(cmd.tempFolder)
 
-            const model = {
-                name: "fossChineseModel",
-                did: deck.baseConf.id,
-                flds: fields,
-                tmpls: templates
-            }
-
-            return apkg.addModel(model)
-        }).then(model => {
-            addedModels.push(model)
-            const notes = []
-            for (let key in vocData) {
-                let item = vocData[key]
-                let itemData = vocData[item.character]
-                let lineArr = []
-                lineArr.push(itemData.character || '')
-                lineArr.push(itemData.definition || '')
-                lineArr.push(itemData.pinyin ? itemData.pinyin.join(' / ') : '')
-                lineArr.push(itemData.decomposition || '')
-                lineArr.push(itemData.etymology && itemData.etymology.type ? itemData.etymology.type : '')
-                lineArr.push(itemData.etymology && itemData.etymology.hint ? itemData.etymology.hint : '')
-                lineArr.push(itemData.etymology && itemData.etymology.phonetic ? itemData.etymology.phonetic : '')
-                lineArr.push(itemData.etymology && itemData.etymology.semantic ? itemData.etymology.semantic : '')
-                lineArr.push(itemData.radical || '')
-                //lineArr.push(itemData.matches || '')
-                lineArr.push(itemData.charCode || '')
-                lineArr.push(itemData.animatedSvg || '')
-                lineArr.push(itemData.stillSvg || '')
-
-                const note = {
-                    mid: model.id,
-                    flds: lineArr,
-                    sfld: fields[0].name
-                }
-                notes.push(note)
-            }
-            const notePromiseArr = notes.map(note=>apkg.addNote(note))
-            return Promise.all(notePromiseArr)
-        }).then(notes => {
-            addedNotes.push(notes)
-            const cards = []
-            for (const note of notes) {
-                console.log(note)
-                const card = {
-                    nid: note.id,
-                    did: addedDecks[0].baseConf.id,
-                    odid: addedDecks[0].baseConf.id
-                }
-                cards.push(card)
-            }
-
-            const cardPromiseArr = cards.map(card=>apkg.addCard(card))
-            return Promise.all(cardPromiseArr)
-        })/*.then(cards) => {
-            //addedCards.push(cards)
-            return fs.writeFile(`${cmd.tempFolder}/media`, '{}')
-        }).then(() => {
-            return fs.readdir(cmd.tempFolder)
-        }).then(files => {
-            const apkgArchive = new JSZip()
-            const filepathArr = files.map(filename=>`${cmd.tempFolder}/${filename}`)
-            for (const filepath of filepathArr) {
-                apkgArchive.file(filepath, fs.createReadStream(filepath))
-            }
-            return apkgArchive.folder(cmd.tempFolder).generateAsync({type:"uint8array"})
-        }).then(content => {
-            return fs.writeFile(apkgFile, content)
-        }).then(content => {
-            return fs.remove(cmd.tempFolder)
-        })*/.then(() => {
-            console.log("Done!")
-        }).catch(console.error)
+    const chineseInputFile = await fs.readFile(cmd.inputFileChinese,'utf8')
+    const wordList = chineseInputFile.split(/\r?\n/)
+    const apkgCfg = await apkg.init()
+    const vocDataObj = await apkg.mmah.getCharData(wordList)
+    const deck = await apkg.addDeck({
+        name: cmd.deckName,
+        desc: cmd.deckDescription
     })
 
+    const jqueryJs = await fs.readFile(`${cmd.libs}/jquery-3.js`,'utf8')
+    const bootstrapJs = await fs.readFile(`${cmd.libs}/bootstrap-3.js`,'utf8')
+    const bootstrapCss = await fs.readFile(`${cmd.libs}/bootstrap-3.css`,'utf8')
+    const bootstrapThemeCss = await fs.readFile(`${cmd.libs}/bootstrap-3-theme.css`,'utf8')
+
+    let sectionCount = -1
+    function generateCollapsablePanel(heading,content,showByDefault=false) {
+        sectionCount++
+        return `
+            <div class="panel panel-primary">
+              <div class="panel-heading">
+                <h4 class="panel-title">
+                  <a data-toggle="collapse" href="#collapse-${sectionCount}">${heading}</a>
+                </h4>
+              </div>
+              <div id="collapse-${sectionCount}" class="panel-collapse collapse ${showByDefault ? 'in' : ''}">
+                <div class="panel-body">
+                  ${content}
+                </div>
+              </div>
+            </div>
+        `
+    }
+
+    let collapsablePanels = ''
+    for (let [i,field] of fields.entries()) {
+        const content = field.html || `{{${field.name}}}`
+        collapsablePanels += generateCollapsablePanel(field.displayName, content, i===0)
+    }
+
+    const templateHtml = `
+        <div id="container" class="container">
+          <div class="panel-group">
+            ${collapsablePanels}
+          </div>
+        </div>
+
+        <script>${jqueryJs}</script>
+        <script>${bootstrapJs}</script>
+        <style>${bootstrapCss}</style>
+        <style>${bootstrapThemeCss}</style>
+        <style>
+            #diagram-container {
+                height: 150px;
+                width: 100%;
+                text-align: left;
+                overflow-y: scroll
+            }
+            #diagram-container > img {
+                width: 50%;
+            }
+        </style>
+        <script>
+        $(function(){
+            $(".panel-body").each(function(){
+                if($.trim($(this).html())=='')
+                    $(this).parent().parent().hide()
+            })
+        });
+        </script>
+
+    `
+
+    const templates = [{
+        name: "fossChineseTemplate",
+        qfmt: templateHtml,
+        afmt: templateHtml
+    }]
+
+    const model = await apkg.addModel({
+        name: "fossChineseModel",
+        did: deck.baseConf.id,
+        flds: fields,
+        tmpls: templates
+    })
+
+    let notes = []
+    for (let key in vocDataObj) {
+        let item = vocDataObj[key]
+        let itemData = vocDataObj[item.character]
+        let lineArr = []
+        lineArr.push(itemData.character || '')
+        lineArr.push(itemData.definition || '')
+        lineArr.push(itemData.pinyin ? itemData.pinyin.join(' / ') : '')
+        lineArr.push(itemData.decomposition || '')
+        lineArr.push(itemData.etymology && itemData.etymology.type ? itemData.etymology.type : '')
+        lineArr.push(itemData.etymology && itemData.etymology.hint ? itemData.etymology.hint : '')
+        lineArr.push(itemData.etymology && itemData.etymology.phonetic ? itemData.etymology.phonetic : '')
+        lineArr.push(itemData.etymology && itemData.etymology.semantic ? itemData.etymology.semantic : '')
+        lineArr.push(itemData.radical || '')
+        //lineArr.push(itemData.matches || '')
+        lineArr.push(itemData.charCode || '')
+        //lineArr.push(`<img src="${itemData.animatedSvg.split(/(\\|\/)/g).pop() || ''}" />`)
+        lineArr.push(`<img src="${itemData.stillSvg.split(/(\\|\/)/g).pop() || ''}" />`)
+
+        const note = {
+            mid: model.id,
+            flds: lineArr,
+            sfld: fields[0].name
+        }
+        notes.push(note)
+    }
+    const notePromiseArr = notes.map(note=>apkg.addNote(note))
+    notes = await Promise.all(notePromiseArr)
+
+    let cards = []
+    for (const note of notes) {
+        const card = {
+            nid: note.id,
+            did: deck.baseConf.id,
+            odid: deck.baseConf.id
+        }
+        cards.push(card)
+    }
+
+    const cardPromiseArr = cards.map(card=>apkg.addCard(card))
+    cards = await Promise.all(cardPromiseArr)
+
+    await fs.writeFile(`${cmd.tempFolder}/media`, '{}')
+
+    for (let key in vocDataObj) {
+        let item = vocDataObj[key]
+        let itemData = vocDataObj[item.character]
+        await apkg.addMedia([itemData.stillSvg])
+    }
+    const files = await fs.readdir(cmd.tempFolder)
+    const apkgArchive = new JSZip()
+    const filepathArr = files.map(filename=>`${cmd.tempFolder}/${filename}`)
+    for (const filepath of filepathArr) {
+        apkgArchive.file(filepath, fs.createReadStream(filepath))
+    }
+    const content = await apkgArchive.folder(cmd.tempFolder).generateAsync({type:"uint8array"})
+    await fs.writeFile(apkgFile, content)
+    await fs.remove(cmd.tempFolder)
+    return "Done!"
+}
 /*
     program
         .command('update <file-path>')
@@ -185,7 +248,6 @@ program
 */
 
 
-program.parse(process.argv)
 
 
 /*

@@ -1,6 +1,6 @@
 # AnkiDeckGenerator
 
-Convert a list of Chinese characters/words/sentences or English words/sentences into extremely detailled Anki cards.
+Convert a list of Chinese characters/words/sentences or English words/sentences into an extremely powerful Anki Deck Package (apkg).
 
 ## TODO
 - [x] Accept individual Chinese characters as input
@@ -25,26 +25,28 @@ Convert a list of Chinese characters/words/sentences or English words/sentences 
 - [x] Create a Stroke order diagram generator that outputs still images with numbers
 - [x] and create a Pull Request at https://github.com/skishore/makemeahanzi adding this generator script and the generated stroke diagrams
 - [x] Generate Anki card data for the charCode as used in JavaScript
-- [ ] Copy the animated Hanzi stroke order diagrams into the deck output
-- [ ] Copy the non-animated Hanzi stroke order diagrams into the deck output
-- [ ] Write a bootstrap based Anki card template that uses all the features mentioned above (almost done)
+- [ ] Copy the animated Hanzi stroke order diagrams into the deck output (animation doesn't work in Anki)
+- [x] Copy the non-animated Hanzi stroke order diagrams into the deck output
+- [x] Write a bootstrap based Anki card template that uses all the features mentioned above
 - [x] Allow specifiying an output dir for the generated files
 - [x] Write Anki card data in Anki compatible tsv format as output
 
 ## Requirements
 - git
-- nodejs
+- nodejs (at least v10)
 
 ## Installation
 ```
 git clone --recursive https://github.com/FOSS-Chinese/AnkiDeckGenerator.git
 cd AnkiDeckGenerator
 npm i
+cd submodules/makemeahanzi/stroke_caps
+node generateStillSvgs.js
 ```
 
 ## Example Usage
 ```
-node ./index.js -c ./example-input.txt -o ./deck
+node index.js auto-generate ./MyNewDeck.apkg -c ./example-input.txt -n MyNewDeck -d "Description of my deck"
 ```
 
 ## Usage
