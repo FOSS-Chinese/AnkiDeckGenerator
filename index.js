@@ -7,6 +7,10 @@ const fs = require('fs-extra')
 const AnkiDeckGenerator = require('./AnkiDeckGenerator')
 const JSZip = require("jszip")
 
+
+const Forvo = require("./Forvo")
+const forvo = new Forvo()
+
 /*
 // BASIC IDEA (DOES NOT REPRESENT ACTUAL IMPLEMENTATION)
 AnkiDeckGenerator.addDeck(config)
@@ -39,17 +43,30 @@ async function autoGenerate(apkgFile, cmd) {
         {
             name: "hanzi",
             displayName: "Hànzì",
-            html: `<h1>{{hanzi}}</h1>`
-        }, {
-            name: "english",
-            displayName: "English"
+            html: `<h1>{{hanzi}}</h1>`,
+            center: true
         }, {
             name: "pinyin",
             displayName: "Pīnyīn",
-            html: `<h1>{{pinyin}}</h1>`
+            html: `<h1>{{pinyin}}</h1>`,
+            center: true
+        }, {
+            name: "english",
+            displayName: "English",
+            center: true
+        }, {
+            name: "stillSvg",
+            displayName: "Stroke Diagram",
+            html: `<div id="diagram-container">{{stillSvg}}</div>`,
+            center: true
+        }, {
+            name: "chineseAudio",
+            displayName: "Chinese Audio",
+            center: true
         }, {
             name: "decomposition",
-            displayName: "Decomposition"
+            displayName: "Decomposition",
+            center: true
         }, {
             name: "etymologyType",
             displayName: "Etymology: Type"
@@ -64,14 +81,12 @@ async function autoGenerate(apkgFile, cmd) {
             displayName: "Etymology: Semantic"
         }, {
             name: "radical",
-            displayName: "Radical"
+            displayName: "Radical",
+            center: true
         }, {
             name: "charCode",
-            displayName: "Char Code"
-        }, {
-            name: "stillSvg",
-            displayName: "Stroke Diagram",
-            html: `<div id="diagram-container">{{stillSvg}}</div>`
+            displayName: "Char Code",
+            center: true
         }
     ]
 
@@ -92,7 +107,7 @@ async function autoGenerate(apkgFile, cmd) {
     const bootstrapThemeCss = await fs.readFile(`${cmd.libs}/bootstrap-3-theme.css`,'utf8')
 
     let sectionCount = -1
-    function generateCollapsablePanel(heading,content,showByDefault=false) {
+    function generateCollapsablePanel(heading,content,center,showByDefault=false) {
         sectionCount++
         return `
             <div class="panel panel-primary">
@@ -102,7 +117,7 @@ async function autoGenerate(apkgFile, cmd) {
                 </h4>
               </div>
               <div id="collapse-${sectionCount}" class="panel-collapse collapse ${showByDefault ? 'in' : ''}">
-                <div class="panel-body">
+                <div class="panel-body ${center ? 'text-center' : ''}">
                   ${content}
                 </div>
               </div>
@@ -113,7 +128,7 @@ async function autoGenerate(apkgFile, cmd) {
     let collapsablePanels = ''
     for (let [i,field] of fields.entries()) {
         const content = field.html || `{{${field.name}}}`
-        collapsablePanels += generateCollapsablePanel(field.displayName, content, i===0)
+        collapsablePanels += generateCollapsablePanel(field.displayName, content, !!field.center, i===0)
     }
 
     const answerTemplateHtml = `
@@ -149,7 +164,7 @@ async function autoGenerate(apkgFile, cmd) {
     `
     const questionTemplate = `
         <script>
-            setTimeout(function(){
+            setInterval(function(){
                 if (typeof (py) !== "undefined") py.link('ans');
                 if (typeof (pycmd) !== "undefined") pycmd('ans');
             },100)
@@ -175,8 +190,10 @@ async function autoGenerate(apkgFile, cmd) {
         let itemData = vocDataObj[item.character]
         let lineArr = []
         lineArr.push(itemData.character || '')
-        lineArr.push(itemData.definition || '')
         lineArr.push(itemData.pinyin ? itemData.pinyin.join(' / ') : '')
+        lineArr.push(itemData.definition || '')
+        lineArr.push(`<img src="${itemData.stillSvg.split(/(\\|\/)/g).pop() || ''}" />`)
+        lineArr.push(`[sound:${itemData.character}-0.mp3]`)
         lineArr.push(itemData.decomposition || '')
         lineArr.push(itemData.etymology && itemData.etymology.type ? itemData.etymology.type : '')
         lineArr.push(itemData.etymology && itemData.etymology.hint ? itemData.etymology.hint : '')
@@ -186,7 +203,6 @@ async function autoGenerate(apkgFile, cmd) {
         //lineArr.push(itemData.matches || '')
         lineArr.push(itemData.charCode || '')
         //lineArr.push(`<img src="${itemData.animatedSvg.split(/(\\|\/)/g).pop() || ''}" />`)
-        lineArr.push(`<img src="${itemData.stillSvg.split(/(\\|\/)/g).pop() || ''}" />`)
 
         const note = {
             mid: model.id,
@@ -216,8 +232,13 @@ async function autoGenerate(apkgFile, cmd) {
     for (let key in vocDataObj) {
         let item = vocDataObj[key]
         let itemData = vocDataObj[item.character]
-        await apkg.addMedia([itemData.stillSvg])
+        let mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',item.character)
+
+        mediaToAdd.push(itemData.stillSvg)
+        await apkg.addMedia(mediaToAdd)
     }
+
+
     const files = await fs.readdir(cmd.tempFolder)
     const apkgArchive = new JSZip()
     const filepathArr = files.map(filename=>`${cmd.tempFolder}/${filename}`)
