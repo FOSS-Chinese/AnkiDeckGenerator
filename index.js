@@ -164,11 +164,36 @@ async function autoGenerate(apkgFile, cmd) {
     `
     const questionTemplate = `
         <script>
-            setInterval(function(){
-                if (typeof (py) !== "undefined") py.link('ans');
-                if (typeof (pycmd) !== "undefined") pycmd('ans');
-            },100)
+            var isEditMode = true
+            var scriptEls = document.getElementsByTagName('script')
+            for (var i = 0; i < scriptEls.length; i++) {
+                var tag = scriptEls[i]
+                if (tag.innerHTML.indexOf('jQuery JavaScript Library') !== -1 && tag.innerHTML.indexOf('isEditMode') === -1)
+                    isEditMode = false
+            }
+            if (!isEditMode) {
+                var interval = setInterval(function(){
+                    if (!!document.getElementById('container')) {
+                        clearInterval(interval)
+                    } else {
+                        if (typeof (pycmd) !== "undefined") {
+                            pycmd('ans')
+                        } else if (typeof (py) !== "undefined") {
+                            py.link('ans')
+                        }
+                    }
+                },100)
+                setTimeout(function() {
+                    clearInterval(interval)
+                },5000)
+            }
         </script>
+        <div>
+            If you're using AnkiDroid, please adjust your settings accordingly:<br/>
+            [Settings] -> [Reviewing] -> Check [Automatic display answer]<br/>
+            [Settings] -> [Reviewing] -> Set [Time to show answer] to [1 s]<br/>
+            [Settings] -> [Reviewing] -> Set [Time to show next question] to [0 s]
+        </div>
     `
 
     const templates = [{

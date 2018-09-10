@@ -259,7 +259,7 @@ class AnkiDeckGenerator {
             mod: Date.now()          // recommendation: leave as is          [last modification time]
         }, baseConf)
         advancedConf = _.merge({//
-            autoplay: true,           // whether the audio associated to a question should be played when the question is shown
+            autoplay: false,          // whether the audio associated to a question should be played when the question is shown
             //dyn: true,              // Whether this deck is dynamic. Not present by default in decks.py
             id: id,                   // deck ID (automatically generated long). Not present by default in decks.py
             lapse: {                  // The configuration for lapse cards.
@@ -275,7 +275,7 @@ class AnkiDeckGenerator {
             new: {                    // The configuration for new cards.
                 bury: true,           // Whether to bury cards related to new cards answered
                 delays: [ 1, 10 ],    // The list of successive delay between the learning steps of the new cards, as explained in the manual.
-                initialFactor: 2500,      // The initial ease factor
+                initialFactor: 2500,  // The initial ease factor
                 ints: [ 1, 4, 7 ],    // The list of delays according to the button pressed while leaving the learning mode. Good, easy and unused. In the GUI, the first two elements corresponds to Graduating Interval and Easy interval
                 order: 1,             // In which order new cards must be shown. NEW_CARDS_RANDOM = 0 and NEW_CARDS_DUE = 1.
                 perDay: 20,           // Maximal number of new cards shown per day.
@@ -287,7 +287,7 @@ class AnkiDeckGenerator {
                 ease4: 1.3,           // the number to add to the easyness when the easy button is pressed
                 fuzz: 0.05,           // The new interval is multiplied by a random number between -fuzz and fuzz
                 ivlFct: 1,            // multiplication factor applied to the intervals Anki generates
-                maxIvl: 36500,        // the maximal interval for review
+                maxIvl: 2190000,      // the maximal interval for review
                 minSpace: 1,          // not currently used according to decks.py code's comment
                 perDay: 100           // Numbers of cards to review per day
             },
@@ -350,7 +350,8 @@ class AnkiDeckGenerator {
             did: 0,            // recommendation: overwrite (REQUIRED) [(Long specifying the id of the deck that cards are added to by default)
             flds: [],          // recommendation: overwrite (REQUIRED) [JSONArray containing object for each field in the model
             tmpls: [],         // recommendation: overwrite (REQUIRED) ["JSONArray containing object of CardTemplate for each card in model"
-            css: `             // recommendation: overwrite (optional)
+                               // recommendation: overwrite (optional)
+            css: `
                 .card {
                     font-family: arial;
                     font-size: 20px;

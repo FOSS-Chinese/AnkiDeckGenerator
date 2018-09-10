@@ -46,7 +46,7 @@ node generateStillSvgs.js
 
 ## Example Usage
 ```
-node index.js auto-generate ./MyNewDeck.apkg -c ./example-input.txt -n MyNewDeck -d "Description of my deck"
+node index.js auto-generate MyNewDeck.apkg -c example-input.txt -n MyNewDeck -d MyDeckDescription
 ```
 
 ## Usage
