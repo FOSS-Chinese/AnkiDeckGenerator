@@ -1,20 +1,12 @@
 'use strict'
 
-const MakeMeAHanzi = require('./MakeMeAHanzi')
 const sqlite3 = require('sqlite3')
 const crypto = require("crypto")
 const _ = require('lodash')
 const fs = require('fs-extra')
 
-class AnkiDeckGenerator {
-    constructor(apkgFile, tempDir='./anki-deck-generator-temp', mmahConf={}) {
-        this.mmahConf = _.merge({
-            graphicsDataPath: './submodules/makemeahanzi/graphics.txt',
-            dictPath: './submodules/makemeahanzi/dictionary.txt',
-            animatedSvgsDir: './submodules/makemeahanzi/svgs',
-            stillSvgsDir: './submodules/makemeahanzi/svgs-still'
-        }, mmahConf)
-        this.mmah = new MakeMeAHanzi(this.mmahConf)
+class AnkiPackage {
+    constructor(apkgFile, tempDir='./anki-deck-generator-temp') {
         this.tempDir = tempDir
         this.apkgFile = apkgFile || './new-deck.apkg'
         this.deckFile = `${this.tempDir}/collection.anki2`
@@ -518,4 +510,4 @@ class AnkiDeckGenerator {
     }
 }
 
-module.exports = AnkiDeckGenerator
+module.exports = AnkiPackage

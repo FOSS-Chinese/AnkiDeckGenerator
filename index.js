@@ -1,22 +1,23 @@
 #!/usr/bin/env node
 'use strict'
 
-const packageInfo = require('./package.json')
 const program = require('commander')
 const fs = require('fs-extra')
-const AnkiDeckGenerator = require('./AnkiDeckGenerator')
 const JSZip = require("jszip")
 
-
+const packageInfo = require('./package.json')
+const AnkiPackage = require('./AnkiPackage')
+const MakeMeAHanzi = require('./MakeMeAHanzi')
 const Forvo = require("./Forvo")
+
 const forvo = new Forvo()
 
 /*
 // BASIC IDEA (DOES NOT REPRESENT ACTUAL IMPLEMENTATION)
-AnkiDeckGenerator.addDeck(config)
-[modelId, templateIndexNumbers] = AnkiDeckGenerator.addModel(config, defaultDeckId, fields, templates)
-noteId = AnkiDeckGenerator.addNote(config, modelId, fields)
-cardId = AnkiDeckGenerator.addCard(config, notesId, deckId, fields, templateIndexNumber, originalDeckId) // originalDeckId is required for filtered decks
+apkg.addDeck(config)
+[modelId, templateIndexNumbers] = apkg.addModel(config, defaultDeckId, fields, templates)
+noteId = apkg.addNote(config, modelId, fields)
+cardId = apkg.addCard(config, notesId, deckId, fields, templateIndexNumber, originalDeckId) // originalDeckId is required for filtered decks
 */
 
 program
@@ -26,6 +27,9 @@ program
     .option('-d, --deck-description <string>', 'Name of the deck to be created')
     .option('-t, --temp-folder [folder-path]', 'Folder to be used/created for temporary files')
     .option('-l, --libs-folder [folder-path]', 'Folder holding libraries for template')
+    .option('-a, --audio-recordings-limit [integer]', 'Max amount of audio recordings to download for each character, word and sentence. (-1: all, 0: none, 1: one, 2: two) Default: 1')
+    .option('-r, --recursive-audio [boolean]', 'Download audio not only for input file entries, but also for every single word and character found in each entry. Default: false')
+    .option('-p, --dictionary-priority-list [comma-separated-string]', 'List of dictionaries (offline and online) to gather data from. (highest priority first. Default: makemeahanzi,forvo,archchinese,mdbg)')
     .action((apkgFile, cmd) => {
         autoGenerate(apkgFile, cmd).then(console.log).catch(err=>console.error(new Error(err)))
     })
@@ -36,9 +40,37 @@ async function autoGenerate(apkgFile, cmd) {
     cmd.deckName = cmd.deckName || "NewDeck"
     cmd.deckDescription = cmd.deckDescription || "A new deck"
     cmd.libs = cmd.libs || "./libs"
-    let apkg
-    apkg = new AnkiDeckGenerator(cmd.deckName, cmd.tempFolder)
+    const apkg = new AnkiPackage(cmd.deckName, cmd.tempFolder)
+    const mmah = new MakeMeAHanzi()
 
+    const fields = [
+        {
+            name: "hanzi",
+            displayName: "Hànzì",
+            html: `<span class="hanzi">{{hanzi}}</span>`,
+            center: true,
+            showByDefault: true
+        }, {
+            name: "pinyin",
+            displayName: "Pīnyīn",
+            html: `<span class="pinyin">{{pinyin}}</span>`,
+            center: true
+        }, {
+            name: "english",
+            displayName: "English",
+            html: `<span class="english">{{english}}</span>`,
+            center: true
+        }, {
+            name: "defaultAudio",
+            displayName: "Mandarin Audio",
+            html: `<div id="mandarin-audio"></div>`,
+            center: true
+        }
+    ]
+    const cnToEnFieldOrder = ["hanzi","pinyin","english","defaultAudio"]
+    const enToCnFieldOrder = ["english","hanzi","pinyin","defaultAudio"]
+
+    /*
     const fields = [
         {
             name: "hanzi",
@@ -89,13 +121,14 @@ async function autoGenerate(apkgFile, cmd) {
             center: true
         }
     ]
+    */
 
     await fs.emptyDir(cmd.tempFolder)
 
     const chineseInputFile = await fs.readFile(cmd.inputFileChinese,'utf8')
     const wordList = chineseInputFile.split(/\r?\n/)
     const apkgCfg = await apkg.init()
-    const vocDataObj = await apkg.mmah.getCharData(wordList)
+    //const vocDataObj = await apkg.mmah.getCharData(wordList)
     const deck = await apkg.addDeck({
         name: cmd.deckName,
         desc: cmd.deckDescription
@@ -108,6 +141,8 @@ async function autoGenerate(apkgFile, cmd) {
 
     let sectionCount = -1
     function generateCollapsablePanel(heading,content,center,showByDefault=false) {
+        if (!heading)
+            return ''
         sectionCount++
         return `
             <div class="panel panel-primary">
@@ -125,44 +160,47 @@ async function autoGenerate(apkgFile, cmd) {
         `
     }
 
-    let collapsablePanels = ''
-    for (let [i,field] of fields.entries()) {
-        const content = field.html || `{{${field.name}}}`
-        collapsablePanels += generateCollapsablePanel(field.displayName, content, !!field.center, i===0)
+    function generateTemplateHtml(unsortedFields,fieldOrder,id) {
+        const fields = unsortedFields.sort((a, b) => fieldOrder.indexOf(a.name) > fieldOrder.indexOf(b.name) ? 1 : -1)
+        let collapsablePanels = ''
+        for (let [i,field] of fields.entries()) {
+            const content = field.html || `{{${field.name}}}`
+            collapsablePanels += generateCollapsablePanel(field.displayName, content, !!field.center, field.showByDefault)
+        }
+        return `
+            <div id="${id}" class="container">
+              <div class="panel-group">
+                ${collapsablePanels}
+              </div>
+            </div>
+
+            <script>${jqueryJs}</script>
+            <script>${bootstrapJs}</script>
+            <style>${bootstrapCss}</style>
+            <style>${bootstrapThemeCss}</style>
+            <style>
+                #diagram-container {
+                    height: 300px;
+                    width: 100%;
+                    text-align: left;
+                    overflow-y: scroll
+                }
+                #diagram-container > img {
+                    width: 100%;
+                }
+            </style>
+            <script>
+            $(function(){
+                $(".panel-body").each(function(){
+                    if($.trim($(this).html())=='')
+                        $(this).parent().parent().hide()
+                })
+            });
+            </script>
+        `
     }
 
-    const answerTemplateHtml = `
-        <div id="container" class="container">
-          <div class="panel-group">
-            ${collapsablePanels}
-          </div>
-        </div>
-
-        <script>${jqueryJs}</script>
-        <script>${bootstrapJs}</script>
-        <style>${bootstrapCss}</style>
-        <style>${bootstrapThemeCss}</style>
-        <style>
-            #diagram-container {
-                height: 150px;
-                width: 100%;
-                text-align: left;
-                overflow-y: scroll
-            }
-            #diagram-container > img {
-                width: 50%;
-            }
-        </style>
-        <script>
-        $(function(){
-            $(".panel-body").each(function(){
-                if($.trim($(this).html())=='')
-                    $(this).parent().parent().hide()
-            })
-        });
-        </script>
-    `
-    const questionTemplate = `
+    const questionSkipTemplate = `
         <script>
             var isEditMode = true
             var scriptEls = document.getElementsByTagName('script')
@@ -197,19 +235,51 @@ async function autoGenerate(apkgFile, cmd) {
     `
 
     const templates = [{
-        name: "fossChineseTemplate",
-        qfmt: questionTemplate,
-        afmt: answerTemplateHtml
+        name: "CnToEn",
+        qfmt: questionSkipTemplate,
+        afmt: generateTemplateHtml(fields, cnToEnFieldOrder, 'cn-en')
+    },{
+        name: "EnToCn",
+        qfmt: questionSkipTemplate,
+        afmt: generateTemplateHtml(fields, enToCnFieldOrder, 'en-cn')
     }]
 
     const model = await apkg.addModel({
         name: "fossChineseModel",
         did: deck.baseConf.id,
-        flds: fields,
+        flds: fields.filter(field=>field.name),
         tmpls: templates
     })
 
     let notes = []
+
+    for (const [i,line] of wordList.entries()) {
+        const lang = line.match(/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/) !== null ? "cn" : "en"
+        let type
+        if (line.includes(' '))
+            type = 'sentence'
+        else if (line.length > 1)
+            type = 'word'
+        else
+            type = "char"
+
+        let lineArr = []
+
+        if (language === 'cn') {
+            if (type === 'char') {
+
+            }
+        }
+
+
+        const note = {
+            mid: model.id,
+            flds: lineArr,
+            sfld: fields[0].name
+        }
+        notes.push(note)
+    }
+
     for (let key in vocDataObj) {
         let item = vocDataObj[key]
         let itemData = vocDataObj[item.character]
@@ -319,7 +389,7 @@ if (!program.apkgFile || !program.inputFileChinese) {
 }
 program.tempFolder = program.tempFolder || './temp'
 
-const apkg = new AnkiDeckGenerator('./db.anki2')
+const apkg = new AnkiPackage('./db.anki2')
 
 fs.ensureDir(program.tempFolder).then(() => {
     return fs.readFile(program.inputFileChinese,'utf8')

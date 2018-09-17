@@ -6,7 +6,7 @@ const download = require('download')
 const fs = require('fs-extra')
 
 function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 class Forvo {

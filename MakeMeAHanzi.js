@@ -5,10 +5,10 @@ const readline = require('readline')
 
 class MakeMeAHanzi {
     constructor(conf={}) {
-        this.graphicsDataPath = conf.graphicsDataPath
-        this.dictPath = conf.dictPath
-        this.animatedSvgsDir = conf.animatedSvgsDir
-        this.stillSvgsDir = conf.stillSvgsDir
+        this.graphicsDataPath = conf.graphicsDataPath || './submodules/makemeahanzi/graphics.txt'
+        this.dictPath = conf.dictPath || './submodules/makemeahanzi/dictionary.txt'
+        this.animatedSvgsDir = conf.animatedSvgsDir || './submodules/makemeahanzi/svgs'
+        this.stillSvgsDir = conf.stillSvgsDir || './submodules/makemeahanzi/svgs-still'
     }
     getCharData(ids, by='char') { // ids can be a single char or charCode or an array of many; 'by' can be 'char' or 'charCode'
         return new Promise((resolve,reject) => {
