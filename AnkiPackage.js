@@ -230,7 +230,6 @@ class AnkiPackage {
         })
     }
 
-
     addDeck(baseConf={}, advancedConf={}) {
         const id = Math.floor(Math.random() * 10000000000000)
         baseConf = _.merge({ // dconf entry
@@ -507,6 +506,13 @@ class AnkiPackage {
             media[maxIndex.toString()] = filename
         }
         return await fs.writeJSON(this.mediaFile, media)
+    }
+
+    async hasMedia(filename) {
+        const media = await fs.readJSON(this.mediaFile)
+        for (const [id,existingFilename] of Object.entries(media))
+            if (existingFilename === filename)
+                return true
     }
 }
 

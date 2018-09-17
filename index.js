@@ -4,6 +4,7 @@
 const program = require('commander')
 const fs = require('fs-extra')
 const JSZip = require("jszip")
+const glob = require("glob")
 
 const packageInfo = require('./package.json')
 const AnkiPackage = require('./AnkiPackage')
@@ -41,7 +42,13 @@ async function autoGenerate(apkgFile, cmd) {
     cmd.deckDescription = cmd.deckDescription || "A new deck"
     cmd.libs = cmd.libs || "./libs"
     const apkg = new AnkiPackage(cmd.deckName, cmd.tempFolder)
-    const mmah = new MakeMeAHanzi()
+
+    let mmahConfg = {}
+    mmahConfg.graphicsDataPath = './submodules/makemeahanzi/graphics.txt'
+    mmahConfg.dictPath = './submodules/makemeahanzi/dictionary.txt'
+    mmahConfg.animatedSvgsDir = './submodules/makemeahanzi/svgs'
+    mmahConfg.stillSvgsDir = './submodules/makemeahanzi/svgs-still'
+    const mmah = new MakeMeAHanzi(mmahConfg)
 
     const fields = [
         {
@@ -124,11 +131,12 @@ async function autoGenerate(apkgFile, cmd) {
     */
 
     await fs.emptyDir(cmd.tempFolder)
+    await fs.writeFile(`${cmd.tempFolder}/media`, '{}')
 
     const chineseInputFile = await fs.readFile(cmd.inputFileChinese,'utf8')
     const wordList = chineseInputFile.split(/\r?\n/)
     const apkgCfg = await apkg.init()
-    //const vocDataObj = await apkg.mmah.getCharData(wordList)
+    //const vocDataObj = await mmah.getCharData(wordList)
     const deck = await apkg.addDeck({
         name: cmd.deckName,
         desc: cmd.deckDescription
@@ -253,6 +261,7 @@ async function autoGenerate(apkgFile, cmd) {
 
     let notes = []
 
+    let chars = []
     for (const [i,line] of wordList.entries()) {
         const lang = line.match(/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/) !== null ? "cn" : "en"
         let type
@@ -263,14 +272,44 @@ async function autoGenerate(apkgFile, cmd) {
         else
             type = "char"
 
-        let lineArr = []
+        if (lang === 'cn') { // TODO get audio for chard and chard form sentences etc
+            if (type === 'word') {
+                const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',line)
+                await apkg.addMedia(mediaToAdd)
+            } else if (type === 'sentence') {
+                const words = line.split(' ')
+                for (const word of words) {
+                    const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',word)
+                    await apkg.addMedia(mediaToAdd)
+                }
+            }
 
-        if (language === 'cn') {
-            if (type === 'char') {
+            for (const char of line.split('')) {
+                if (char !== ' ') {
+                    chars.push(char)
 
+                    const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',line)
+                    mediaToAdd.push(`${mmahConfg.stillSvgsDir}/${char.charCodeAt()}-still.svg`)
+                    await apkg.addMedia(mediaToAdd)
+                }
             }
         }
+    }
 
+    const vocDataObj = await mmah.getCharData(chars)
+    for (let key in vocDataObj) {
+        let item = vocDataObj[key]
+        let itemData = vocDataObj[item.character]
+        let lineArr = []
+        lineArr.push(itemData.character || '')
+        lineArr.push(itemData.pinyin ? itemData.pinyin.join(' / ') : '')
+        lineArr.push(itemData.definition || '')
+
+        const defaultAudio = `${itemData.character}-0.mp3`
+        const hasDefaultAudio = await apkg.hasMedia(defaultAudio)
+        lineArr.push(hasDefaultAudio ? `[sound:${defaultAudio}]` : '')
+        //lineArr.push(`<img src="${itemData.stillSvg.split(/(\\|\/)/g).pop() || ''}" />`)
+        //glob.readdirPromise('*.js')
 
         const note = {
             mid: model.id,
@@ -280,6 +319,7 @@ async function autoGenerate(apkgFile, cmd) {
         notes.push(note)
     }
 
+    /*
     for (let key in vocDataObj) {
         let item = vocDataObj[key]
         let itemData = vocDataObj[item.character]
@@ -306,6 +346,7 @@ async function autoGenerate(apkgFile, cmd) {
         }
         notes.push(note)
     }
+    */
     const notePromiseArr = notes.map(note=>apkg.addNote(note))
     notes = await Promise.all(notePromiseArr)
 
@@ -321,17 +362,6 @@ async function autoGenerate(apkgFile, cmd) {
 
     const cardPromiseArr = cards.map(card=>apkg.addCard(card))
     cards = await Promise.all(cardPromiseArr)
-
-    await fs.writeFile(`${cmd.tempFolder}/media`, '{}')
-
-    for (let key in vocDataObj) {
-        let item = vocDataObj[key]
-        let itemData = vocDataObj[item.character]
-        let mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',item.character)
-
-        mediaToAdd.push(itemData.stillSvg)
-        await apkg.addMedia(mediaToAdd)
-    }
 
 
     const files = await fs.readdir(cmd.tempFolder)
