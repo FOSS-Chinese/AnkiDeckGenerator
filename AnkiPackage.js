@@ -376,7 +376,7 @@ class AnkiPackage {
             type: 0,
             addon: "Chinese (basic)",    // recommendation: ?
             mod: timestampNow,
-            id: id,
+            id: timestampNow,
             vers: []
         }, model)
 
@@ -385,6 +385,7 @@ class AnkiPackage {
         }).then(col => {
             return new Promise((resolve, reject) => {
                 let models = JSON.parse(col.models)
+                // TODO change timestampNow to id ight here and in the model config above... Why the F... doesn't that work?
                 models[timestampNow] = model
                 this.ankiDb.run(`
                     UPDATE col SET

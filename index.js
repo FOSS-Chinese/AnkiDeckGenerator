@@ -55,8 +55,7 @@ async function autoGenerate(apkgFile, cmd) {
             name: "hanzi",
             displayName: "Hànzì",
             html: `<span class="hanzi">{{hanzi}}</span>`,
-            center: true,
-            showByDefault: true
+            center: true
         }, {
             name: "pinyin",
             displayName: "Pīnyīn",
@@ -146,7 +145,7 @@ async function autoGenerate(apkgFile, cmd) {
     const bootstrapThemeCss = await fs.readFile(`${cmd.libs}/bootstrap-3-theme.css`,'utf8')
 
     let sectionCount = -1
-    function generateCollapsablePanel(heading,content,center,showByDefault=false) {
+    function generateCollapsablePanel(heading,content,center,showByDefault) {
         if (!heading)
             return ''
         sectionCount++
@@ -170,7 +169,7 @@ async function autoGenerate(apkgFile, cmd) {
         let collapsablePanels = ''
         for (let [i,field] of fields.entries()) {
             const content = field.html || `{{${field.name}}}`
-            collapsablePanels += generateCollapsablePanel(field.displayName, content, !!field.center, field.showByDefault)
+            collapsablePanels += generateCollapsablePanel(field.displayName, content, !!field.center, i===0)
         }
         return `
             <div id="${id}" class="container">
@@ -239,36 +238,33 @@ async function autoGenerate(apkgFile, cmd) {
         </div>
     `
 
-    const models = []
     const decks = []
-
+    const templates = []
     for (const [i,field] of fields.entries()) {
-        const reorderedFields = fields.sort((x,y) => x.name === field ? -1 : y.name === field ? 1 : 0)
-        const templates = [{
-            name: `${field.name}-questions-template`,
+        const reorderedFields = JSON.parse(JSON.stringify(fields)).sort((x,y) => x.name === field.name ? -1 : y.name === field.name ? 1 : 0)
+        const template = {
+            name: `${field.name}Template`,
             qfmt: questionSkipTemplate,
             afmt: generateTemplateHtml(reorderedFields, `${field.name}-question`)
-        }]
+        }
+        templates.push(template)
 
         const deckToCreate = {
-            name: `${cmd.deckName}::${field.name}`,
-            desc: `Subdeck for learning by ${field.name}`
+            name: `${cmd.deckName}::${field.displayName}`,
+            desc: `Subdeck for learning by ${field.displayName}`
         }
         const deck = await apkg.addDeck(deckToCreate)
         decks.push(deck)
-
-        const modelToCreate = {
-            name: `${field.name}-model`,
-            did: deck.baseConf.id,
-            flds: fields.map(field=>{return {name:field.name}}),
-            tmpls: templates
-        }
-        const model = await apkg.addModel(modelToCreate)
-
-        if (!model.flds)
-            console.log("model.flds")
-        models.push(model)
     }
+
+    const modelToCreate = {
+        name: `model`,
+        //did: deck.baseConf.id,
+        flds: fields.map(field=>{return {name:field.name}}),
+        tmpls: templates
+    }
+    const model = await apkg.addModel(modelToCreate)
+    //console.log(model.tmpls.map(tpl=>{return {name:tpl.name, q: !!tpl.qfmt, a: !!tpl.afmt}}))
 
     let chars = []
     for (const [i,line] of wordList.entries()) {
@@ -321,15 +317,13 @@ async function autoGenerate(apkgFile, cmd) {
         //fieldContentArr.push(`<img src="${itemData.stillSvg.split(/(\\|\/)/g).pop() || ''}" />`)
         //glob.readdirPromise('*.js')
 
-        for (const [i,model] of models.entries()) {
-            const noteToAdd = {
-                mid: model.id,
-                flds: fieldContentArr,
-                sfld: fields[0].name
-            }
-            const note = await apkg.addNote(noteToAdd)
-            notes.push(note)
+        const noteToAdd = {
+            mid: model.id,
+            flds: fieldContentArr,
+            sfld: fields[0].name
         }
+        const note = await apkg.addNote(noteToAdd)
+        notes.push(note)
     }
 
     /*
@@ -365,18 +359,16 @@ async function autoGenerate(apkgFile, cmd) {
 
     let cards = []
     for (const note of notes) {
-        const model = models.filter(model=>model.id===note.mid)[0]
-        const deck = decks.filter(deck=>deck.baseConf.id===model.did)[0]
-
-        const cardToCreate = {
-            nid: note.id,
-            did: deck.baseConf.id,
-            odid: deck.baseConf.id,
-            ord: 0 // template index
+        for (const [i,deck] of decks.entries()) {
+            const cardToCreate = {
+                nid: note.id,
+                did: deck.baseConf.id,
+                odid: deck.baseConf.id,
+                ord: i // template index
+            }
+            const card = await apkg.addCard(cardToCreate)
+            cards.push(card)
         }
-
-        const card = await apkg.addCard(cardToCreate)
-        cards.push(card)
     }
 
     //const cardPromiseArr = cards.map(card=>apkg.addCard(card))
