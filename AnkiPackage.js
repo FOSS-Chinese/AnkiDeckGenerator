@@ -212,8 +212,8 @@ class AnkiPackage {
                     INSERT INTO col VALUES(
                         1,                            /* id */
                         ${crt},                       /* crt */
-                        1398130163295,                /* mod */
-                        1398130163168,                /* scm */
+                        ${mod},                       /* mod */
+                        ${scm},                       /* scm */
                         11,                           /* ver */
                         0,                            /* dty */
                         0,                            /* usn */
@@ -235,6 +235,7 @@ class AnkiPackage {
         baseConf = _.merge({ // dconf entry
             name: "Default",         // recommendation: overwrite (REQUIRED) [name of deck]
             desc: "",                // recommendation: overwrite (optional) [OPTIONAL deck description]
+            dyn: 0,                  // recommendation: none (optional)      [1 if dynamic (AKA filtered) deck]
             collapsed: false,        // recommendation: leave as is          [true when deck is collapsed]
             browserCollapsed: false, // recommendation: leave as is          [true when deck collapsed in browser]
             extendRev: 50,           // recommendation: leave as is          [extended review card limit (for custom study)]
@@ -243,7 +244,6 @@ class AnkiPackage {
             timeToday: [0, 0],       // recommendation: leave as is          [two number array used somehow for custom study. Currently unused in the code]
             revToday: [0, 0],        // recommendation: leave as is          [two number. First one currently not used. Second is the negation (-) the number of review cards added today by custom study]
             lrnToday: [0, 0],        // recommendation: leave as is          [two number array used somehow for custom study. Currently unused in the code]
-            dyn: 0,                  // recommendation: leave as is          [1 if dynamic (AKA filtered) deck]
             usn: 0,                  // recommendation: leave as is          [usn: Update sequence number: used in same way as other usn vales in db]
             conf: id,                // recommendation: leave as is          [id of option group from dconf in `col` table]
             id: id,                  // recommendation: leave as is          [deck ID (automatically generated long)]
@@ -306,6 +306,7 @@ class AnkiPackage {
 
     addModel(model={}) {
         const timestampNow = Math.round(Date.now()/1000)
+        const id = Math.round(10000000000*Math.random())
 
         for (let [i,fld] of model.flds.entries()) {
             model.flds[i] = _.merge({
@@ -375,7 +376,7 @@ class AnkiPackage {
             type: 0,
             addon: "Chinese (basic)",    // recommendation: ?
             mod: timestampNow,
-            id: timestampNow,
+            id: id,
             vers: []
         }, model)
 
@@ -448,6 +449,7 @@ class AnkiPackage {
                 nid: 0,            // recommendation: overwrite (REQUIRED)         [notes id]
                 did: 0,            // recommendation: overwrite (REQUIRED)         [deck id]
                 odid: 0,           // recommendation: overwrite                    [original deck id]
+                ord: 0,            // recommendation: none (optional)              [template index]
                 type: 0,           // recommendation: none (optional)              [0=new, 1=learning, 2=due, 3=filtered]
                 queue: 0,
                 due: 0,
@@ -459,7 +461,6 @@ class AnkiPackage {
                 odue: 0,
                 flags: 0,
                 usn: -1,
-                ord: 0,            // recommendation: leave as is
                 mod: timestampNow, // recommendation: leave as is
                 id: id,            // recommendation: leave as is
                 data: ''           // useless, not used
@@ -492,7 +493,7 @@ class AnkiPackage {
     }
 
     async addMedia(files) {
-        const media = await fs.readJSON(this.mediaFile)
+        const media = await fs.readJSON(this.mediaFile) // TODO: maybe store in this.media
         let maxIndex
         try {
             maxIndex = Object.keys(media).reduce(function(a, b){return parseInt(a,10) > parseInt(b,10) ? a : b})
@@ -508,11 +509,12 @@ class AnkiPackage {
         return await fs.writeJSON(this.mediaFile, media)
     }
 
-    async hasMedia(filename) {
+    async hasMedia(filenameToSearch) {
         const media = await fs.readJSON(this.mediaFile)
-        for (const [id,existingFilename] of Object.entries(media))
-            if (existingFilename === filename)
+        for (const [id,filename] of Object.entries(media)) {
+            if (filename === filenameToSearch)
                 return true
+        }
     }
 }
 

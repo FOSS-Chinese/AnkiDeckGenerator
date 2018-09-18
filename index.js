@@ -74,8 +74,6 @@ async function autoGenerate(apkgFile, cmd) {
             center: true
         }
     ]
-    const cnToEnFieldOrder = ["hanzi","pinyin","english","defaultAudio"]
-    const enToCnFieldOrder = ["english","hanzi","pinyin","defaultAudio"]
 
     /*
     const fields = [
@@ -137,7 +135,7 @@ async function autoGenerate(apkgFile, cmd) {
     const wordList = chineseInputFile.split(/\r?\n/)
     const apkgCfg = await apkg.init()
     //const vocDataObj = await mmah.getCharData(wordList)
-    const deck = await apkg.addDeck({
+    const baseDeck = await apkg.addDeck({
         name: cmd.deckName,
         desc: cmd.deckDescription
     })
@@ -168,8 +166,7 @@ async function autoGenerate(apkgFile, cmd) {
         `
     }
 
-    function generateTemplateHtml(unsortedFields,fieldOrder,id) {
-        const fields = unsortedFields.sort((a, b) => fieldOrder.indexOf(a.name) > fieldOrder.indexOf(b.name) ? 1 : -1)
+    function generateTemplateHtml(fields,id) {
         let collapsablePanels = ''
         for (let [i,field] of fields.entries()) {
             const content = field.html || `{{${field.name}}}`
@@ -242,24 +239,33 @@ async function autoGenerate(apkgFile, cmd) {
         </div>
     `
 
-    const templates = [{
-        name: "CnToEn",
-        qfmt: questionSkipTemplate,
-        afmt: generateTemplateHtml(fields, cnToEnFieldOrder, 'cn-en')
-    },{
-        name: "EnToCn",
-        qfmt: questionSkipTemplate,
-        afmt: generateTemplateHtml(fields, enToCnFieldOrder, 'en-cn')
-    }]
+    const models = []
+    const decks = []
 
-    const model = await apkg.addModel({
-        name: "fossChineseModel",
-        did: deck.baseConf.id,
-        flds: fields.filter(field=>field.name),
-        tmpls: templates
-    })
+    for (const [i,field] of fields.entries()) {
+        const reorderedFields = fields.sort((x,y) => x.name === field ? -1 : y.name === field ? 1 : 0)
+        const templates = [{
+            name: `${field.name}-questions-template`,
+            qfmt: questionSkipTemplate,
+            afmt: generateTemplateHtml(reorderedFields, `${field.name}-question`)
+        }]
 
-    let notes = []
+        const deckToCreate = {
+            name: `${cmd.deckName}::${field.name}`,
+            desc: `Subdeck for learning by ${field.name}`
+        }
+        const deck = await apkg.addDeck(deckToCreate)
+        decks.push(deck)
+
+        const modelToCreate = {
+            name: `${field.name}-model`,
+            did: deck.baseConf.id,
+            flds: fields,
+            tmpls: templates
+        }
+        const model = await apkg.addModel(modelToCreate)
+        models.push(model)
+    }
 
     let chars = []
     for (const [i,line] of wordList.entries()) {
@@ -296,27 +302,32 @@ async function autoGenerate(apkgFile, cmd) {
         }
     }
 
+    const notes = []
     const vocDataObj = await mmah.getCharData(chars)
     for (let key in vocDataObj) {
         let item = vocDataObj[key]
         let itemData = vocDataObj[item.character]
-        let lineArr = []
-        lineArr.push(itemData.character || '')
-        lineArr.push(itemData.pinyin ? itemData.pinyin.join(' / ') : '')
-        lineArr.push(itemData.definition || '')
+        let fieldContentArr = []
+        fieldContentArr.push(itemData.character || '')
+        fieldContentArr.push(itemData.pinyin ? itemData.pinyin.join(' / ') : '')
+        fieldContentArr.push(itemData.definition || '')
 
         const defaultAudio = `${itemData.character}-0.mp3`
         const hasDefaultAudio = await apkg.hasMedia(defaultAudio)
-        lineArr.push(hasDefaultAudio ? `[sound:${defaultAudio}]` : '')
-        //lineArr.push(`<img src="${itemData.stillSvg.split(/(\\|\/)/g).pop() || ''}" />`)
+        fieldContentArr.push(hasDefaultAudio ? `[sound:${defaultAudio}]` : '')
+        //fieldContentArr.push(`<img src="${itemData.stillSvg.split(/(\\|\/)/g).pop() || ''}" />`)
         //glob.readdirPromise('*.js')
 
-        const note = {
-            mid: model.id,
-            flds: lineArr,
-            sfld: fields[0].name
+        for (const [i,model] of models.entries()) {
+            const noteToAdd = {
+                mid: model.id,
+                flds: fieldContentArr,
+                sfld: fields[0].name
+            }
+            console.log(model.id)
+            const note = await apkg.addNote(noteToAdd)
+            notes.push(note)
         }
-        notes.push(note)
     }
 
     /*
@@ -347,21 +358,26 @@ async function autoGenerate(apkgFile, cmd) {
         notes.push(note)
     }
     */
-    const notePromiseArr = notes.map(note=>apkg.addNote(note))
-    notes = await Promise.all(notePromiseArr)
+    //const notePromiseArr = notes.map(note=>apkg.addNote(note))
+    //notes = await Promise.all(notePromiseArr)
 
     let cards = []
     for (const note of notes) {
-        const card = {
+        const model = models.filter(model=>model.id===note.mid)[0]
+        const deck = decks.filter(deck=>deck.baseConf.id===model.did)[0]
+
+        const cardToCreate = {
             nid: note.id,
             did: deck.baseConf.id,
-            odid: deck.baseConf.id
+            odid: deck.baseConf.id,
+            ord: 0 // template index
         }
+        const card = await apkg.addCard(cardToCreate)
         cards.push(card)
     }
 
-    const cardPromiseArr = cards.map(card=>apkg.addCard(card))
-    cards = await Promise.all(cardPromiseArr)
+    //const cardPromiseArr = cards.map(card=>apkg.addCard(card))
+    //cards = await Promise.all(cardPromiseArr)
 
 
     const files = await fs.readdir(cmd.tempFolder)
