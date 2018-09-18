@@ -260,10 +260,15 @@ async function autoGenerate(apkgFile, cmd) {
         const modelToCreate = {
             name: `${field.name}-model`,
             did: deck.baseConf.id,
-            flds: fields,
-            tmpls: templates
+            flds: fields.map(field=>{name:field.name}),
+            tmpls: templates // TODO: name prop missing??
         }
         const model = await apkg.addModel(modelToCreate)
+
+        for (const f of model.flds)
+            console.log(f.name)
+        for (const f of model.tmpls)
+            console.log(f.name)
         models.push(model)
     }
 
@@ -324,7 +329,6 @@ async function autoGenerate(apkgFile, cmd) {
                 flds: fieldContentArr,
                 sfld: fields[0].name
             }
-            console.log(model.id)
             const note = await apkg.addNote(noteToAdd)
             notes.push(note)
         }
@@ -372,6 +376,7 @@ async function autoGenerate(apkgFile, cmd) {
             odid: deck.baseConf.id,
             ord: 0 // template index
         }
+
         const card = await apkg.addCard(cardToCreate)
         cards.push(card)
     }
