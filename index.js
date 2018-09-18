@@ -260,15 +260,13 @@ async function autoGenerate(apkgFile, cmd) {
         const modelToCreate = {
             name: `${field.name}-model`,
             did: deck.baseConf.id,
-            flds: fields.map(field=>{name:field.name}),
-            tmpls: templates // TODO: name prop missing??
+            flds: fields.map(field=>{return {name:field.name}}),
+            tmpls: templates
         }
         const model = await apkg.addModel(modelToCreate)
 
-        for (const f of model.flds)
-            console.log(f.name)
-        for (const f of model.tmpls)
-            console.log(f.name)
+        if (!model.flds)
+            console.log("model.flds")
         models.push(model)
     }
 
