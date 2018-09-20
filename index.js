@@ -69,7 +69,7 @@ async function autoGenerate(apkgFile, cmd) {
         }, {
             name: "defaultAudio",
             displayName: "Mandarin Audio",
-            html: `<div id="mandarin-audio"></div>`,
+            html: `<div id="mandarin-audio">{{defaultAudio}}</div>`,
             center: true
         }
     ]
@@ -150,7 +150,7 @@ async function autoGenerate(apkgFile, cmd) {
             return ''
         sectionCount++
         return `
-            <div class="panel panel-primary">
+            <div id="container" class="panel panel-primary">
               <div class="panel-heading">
                 <h4 class="panel-title">
                   <a data-toggle="collapse" href="#collapse-${sectionCount}">${heading}</a>
@@ -165,14 +165,14 @@ async function autoGenerate(apkgFile, cmd) {
         `
     }
 
-    function generateTemplateHtml(fields,id) {
+    function generateTemplateHtml(fields) {
         let collapsablePanels = ''
         for (let [i,field] of fields.entries()) {
             const content = field.html || `{{${field.name}}}`
             collapsablePanels += generateCollapsablePanel(field.displayName, content, !!field.center, i===0)
         }
         return `
-            <div id="${id}" class="container">
+            <div id="${fields[0].name}-field" class="answer-field">
               <div class="panel-group">
                 ${collapsablePanels}
               </div>
@@ -245,7 +245,7 @@ async function autoGenerate(apkgFile, cmd) {
         const template = {
             name: `${field.name}Template`,
             qfmt: questionSkipTemplate,
-            afmt: generateTemplateHtml(reorderedFields, `${field.name}-question`)
+            afmt: generateTemplateHtml(reorderedFields)
         }
         templates.push(template)
 
@@ -261,11 +261,11 @@ async function autoGenerate(apkgFile, cmd) {
         name: `model`,
         //did: deck.baseConf.id,
         flds: fields.map(field=>{return {name:field.name}}),
-        tmpls: templates
+        tmpls: templates,
+        css: ''
     }
     const model = await apkg.addModel(modelToCreate)
     //console.log(model.tmpls.map(tpl=>{return {name:tpl.name, q: !!tpl.qfmt, a: !!tpl.afmt}}))
-    console.log(model.flds)
 
     let chars = []
     for (const [i,line] of wordList.entries()) {
