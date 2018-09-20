@@ -265,6 +265,7 @@ async function autoGenerate(apkgFile, cmd) {
     }
     const model = await apkg.addModel(modelToCreate)
     //console.log(model.tmpls.map(tpl=>{return {name:tpl.name, q: !!tpl.qfmt, a: !!tpl.afmt}}))
+    console.log(model.flds)
 
     let chars = []
     for (const [i,line] of wordList.entries()) {

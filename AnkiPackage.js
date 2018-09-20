@@ -334,7 +334,9 @@ class AnkiPackage {
 
         if (!model.req) {
             const ords = model.flds.map(fld=>fld.ord)
-            model.req = [[ 0, "any", ords]]
+            model.req = []
+            for (const [i,tpl] of model.tmpls.entries())
+                model.req.push([i, "any", ords])
         }
 
         model = _.merge({
@@ -385,7 +387,6 @@ class AnkiPackage {
         }).then(col => {
             return new Promise((resolve, reject) => {
                 let models = JSON.parse(col.models)
-                // TODO change timestampNow to id ight here and in the model config above... Why the F... doesn't that work?
                 models[timestampNow] = model
                 this.ankiDb.run(`
                     UPDATE col SET
