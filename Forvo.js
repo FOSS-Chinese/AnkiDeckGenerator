@@ -20,31 +20,34 @@ class Forvo {
         const em = $(`#${dialect}`)
         const article = $(em).closest('article')
         const play = $(article).find('.play')
-
         const urls = []
         $(play).each((i,el)=>{
-             const onclickCode = $(el).attr('onclick')
-             const encodedUrlCmp = onclickCode.match(/,'([^']+)'/g)[2]
-             const decodedUrlCmp = new Buffer(encodedUrlCmp, 'base64').toString('utf8')
-             const url = `${this.audioBaseUrl}/${decodedUrlCmp}`
-             urls.push(url)
+            const ls = $(el).closest('li')
+            const ofLinkTxt = $(ls).find('.ofLink').contents().first().text()
+            const fromTxt = $(ls).find('.from').contents().first().text()
+            const name = `${hanzi} - by ${ofLinkTxt} ${fromTxt}.${type}`
+            const onclickCode = $(el).attr('onclick')
+            const encodedUrlCmp = onclickCode.match(/,'([^']+)'/g)[2]
+            const decodedUrlCmp = new Buffer(encodedUrlCmp, 'base64').toString('utf8')
+            const url = `${this.audioBaseUrl}/${decodedUrlCmp}`
+            urls.push({url,name})
         })
         return urls
     }
     async downloadAudio(targetDir, hanzi, dialect='zh', type='mp3', overwrite=false, maxDls=0, sleepBetweenDls=100) {
         const urls = await this.getAudioUrls(hanzi,dialect,type)
         const filenames = []
-        for (const [i,url] of urls.entries()) {
+        for (const [i,urlObj] of urls.entries()) {
             if (i!==0 && i>maxDls)
                 break
-            const filename = `${hanzi}-${i}.mp3`
+            const filename = urlObj.name //`${hanzi}-${i}.mp3`
             const targetFile = `${targetDir}/${filename}`
             if (!overwrite && await fs.pathExists(targetFile)) {
                 filenames.push(targetFile)
                 continue
             }
 
-            await download(url, targetDir, {filename})
+            await download(urlObj.url, targetDir, {filename})
             sleep(sleepBetweenDls)
             filenames.push(targetFile)
         }

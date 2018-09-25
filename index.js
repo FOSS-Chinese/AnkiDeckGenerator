@@ -69,7 +69,7 @@ async function autoGenerate(apkgFile, cmd) {
         }, {
             name: "chineseAudio",
             displayName: "Chinese Audio",
-            html: `<div id="chinese-audio"></div>`, // content will be generated
+            html: `<div class="chinese-audio"></div>`, // content will be generated
             center: true
         }
     ]
@@ -129,6 +129,7 @@ async function autoGenerate(apkgFile, cmd) {
 
     await fs.emptyDir(cmd.tempFolder)
     await fs.writeFile(`${cmd.tempFolder}/media`, '{}')
+    await apkg.addMedia([`${cmd.libs}/_jquery-3.js`,`${cmd.libs}/_bootstrap-3.js`,`${cmd.libs}/_bootstrap-3.css`,`${cmd.libs}/_bootstrap-3-theme.css`])
 
     const chineseInputFile = await fs.readFile(cmd.inputFileChinese,'utf8')
     const wordList = chineseInputFile.split(/\r?\n/)
@@ -139,10 +140,10 @@ async function autoGenerate(apkgFile, cmd) {
         desc: cmd.deckDescription
     })
 
-    const jqueryJs = await fs.readFile(`${cmd.libs}/jquery-3.js`,'utf8')
-    const bootstrapJs = await fs.readFile(`${cmd.libs}/bootstrap-3.js`,'utf8')
-    const bootstrapCss = await fs.readFile(`${cmd.libs}/bootstrap-3.css`,'utf8')
-    const bootstrapThemeCss = await fs.readFile(`${cmd.libs}/bootstrap-3-theme.css`,'utf8')
+    //const jqueryJs = await fs.readFile(`${cmd.libs}/jquery-3.js`,'utf8')
+    //const bootstrapJs = await fs.readFile(`${cmd.libs}/bootstrap-3.js`,'utf8')
+    //const bootstrapCss = await fs.readFile(`${cmd.libs}/bootstrap-3.css`,'utf8')
+    //const bootstrapThemeCss = await fs.readFile(`${cmd.libs}/bootstrap-3-theme.css`,'utf8')
 
     let sectionCount = -1
     function generateCollapsablePanel(heading,content,center,showByDefault) {
@@ -151,8 +152,8 @@ async function autoGenerate(apkgFile, cmd) {
         sectionCount++
         return `
             <div class="panel panel-primary">
-              <div class="panel-heading">
-                <h4 class="panel-title" onclick="$('#collapse-${sectionCount}').toggle()">
+              <div class="panel-heading" onclick="$('#collapse-${sectionCount}').toggle()">
+                <h4 class="panel-title">
                   ${heading}
                 </h4>
               </div>
@@ -178,24 +179,41 @@ async function autoGenerate(apkgFile, cmd) {
               </div>
             </div>
             <script>
-                var deckType = "${fields[0].name}"
-                function onLoadAudio(audioFiles) {
-                    alert(JSON.stringify(audioFiles));
+                var deckType = "${fields[0].name}";
+                var hanzi = "{{hanzi}}";
+                var pinyin = "{{pinyin}}";
+                var english = "{{english}}";
+                var audioFiles = [];
+                function onLoadAudio(af) {
+                    audioFiles = af;
                 }
                 function onLibsLoaded() {
-                    alert("Lib loading succeeded!");
+                    //alert("Lib loading succeeded!");
+                    var audioSection = $('#base-container .chinese-audio');
+                    audioFiles[hanzi].forEach(function(audioFile, i){
+                        var audioEl = $('<audio/>', {
+                            class: 'audio-' + i,
+                            src: audioFile,
+                            type: 'audio/mp3',
+                            text: '▶ Play ' + audioFile
+                        })
+                        var audioButton = $('<button/>', {
+                            text: '▶ Play ' + audioFile,
+                            click: function() {
+                                $('#base-container .chinese-audio .audio-' + i).get(0).play();
+                            }
+                        })
+                        audioSection.append(audioEl);
+                        audioSection.append(audioButton);
+                    });
                 }
                 function onLibsFailed() {
                     alert("Lib loading failed!");
                 }
             </script>
-            <script>${jqueryJs}</script>
-            <script>${bootstrapJs}</script>
-            <style>${bootstrapCss}</style>
-            <style>${bootstrapThemeCss}</style>
             <script>
                 function loadLibs(files, success_cb, fail_cb, timeout) {
-                    var timer = setTimeout(fail_cb || function(){loadLibs(files, success_cb, fail_cb, timeout)}, timeout || 5000);
+                    var timer = setTimeout(fail_cb || function(){alert("loadLibs failed!");}, timeout || 5000);
                     var loadCount = 0;
                     function onLibLoaded() {
                         loadCount++;
@@ -205,30 +223,37 @@ async function autoGenerate(apkgFile, cmd) {
                         }
                     }
                     files.forEach(function(file){
+                        if (file[0] !== '_')
+                            alert("Error: Please rename '" + file + "' to '_" + file + "'!");
                         var ext = file.split('.').slice(-1).pop();
-                        if (ext === 'js') {
+                        if (ext === 'js' || ext === 'jsonp') {
                             var script = document.createElement('script');
                             script.src = file;
-                            script.onload = onLibLoaded;
+                            script.addEventListener ("load", onLibLoaded);
+                            //script.onload = onLibLoaded;
                             document.getElementsByTagName('head')[0].appendChild(script);
                         } else if (ext === 'css') {
                             var css = document.createElement('link');
                             css.rel = 'stylesheet'
                             css.type = 'text/css';
                             css.href = file;
-                            css.onload = onLibLoaded;
+                            css.addEventListener ("load", onLibLoaded);
+                            //css.onload = onLibLoaded;
                             document.getElementsByTagName('head')[0].appendChild(css);
                         }
                     })
                 }
-                loadLibs(['_audio.jsonp'], onLibsLoaded, undefined, 1000);
+                loadLibs(['_jquery-3.js','_bootstrap-3.js','_bootstrap-3.css','_bootstrap-3-theme.css','_audio.jsonp'], onLibsLoaded, onLibsFailed, 1000);
             </script>
             <style>
                 body {
                     margin: 1px;
                 }
-                #base-container .panel-title {
+                #base-container .panel-heading {
                     cursor: pointer;
+                }
+                #base-container .hanzi {
+                    font-size: 35px;
                 }
                 #diagram-container {
                     height: 300px;
@@ -375,6 +400,8 @@ async function autoGenerate(apkgFile, cmd) {
 
     await fs.outputFile(`${cmd.tempFolder}/_audio.jsonp`,`onLoadAudio(${JSON.stringify(addedMedia.audio)})`)
     await apkg.addMedia(`${cmd.tempFolder}/_audio.jsonp`)
+    await fs.remove(`${cmd.tempFolder}/_audio.jsonp`)
+
     const notes = []
     const vocDataObj = await mmah.getCharData(chars)
     for (let key in vocDataObj) {
