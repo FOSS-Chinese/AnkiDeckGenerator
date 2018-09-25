@@ -16,7 +16,7 @@ const forvo = new Forvo()
 /*
 // BASIC IDEA (DOES NOT REPRESENT ACTUAL IMPLEMENTATION)
 apkg.addDeck(config)
-[modelId, templateIndexNumbers] = apkg.addModel(config, defaultDeckId, fields, templates)
+[modelId, templateIndexNumbers] = apkg.addModel(config, fields, templates)
 noteId = apkg.addNote(config, modelId, fields)
 cardId = apkg.addCard(config, notesId, deckId, fields, templateIndexNumber, originalDeckId) // originalDeckId is required for filtered decks
 */
@@ -67,9 +67,9 @@ async function autoGenerate(apkgFile, cmd) {
             html: `<span class="english">{{english}}</span>`,
             center: true
         }, {
-            name: "defaultAudio",
-            displayName: "Mandarin Audio",
-            html: `<div id="mandarin-audio">{{defaultAudio}}</div>`,
+            name: "chineseAudio",
+            displayName: "Chinese Audio",
+            html: `<div id="chinese-audio"></div>`, // content will be generated
             center: true
         }
     ]
@@ -150,10 +150,10 @@ async function autoGenerate(apkgFile, cmd) {
             return ''
         sectionCount++
         return `
-            <div id="container" class="panel panel-primary">
+            <div class="panel panel-primary">
               <div class="panel-heading">
-                <h4 class="panel-title">
-                  <a data-toggle="collapse" href="#collapse-${sectionCount}">${heading}</a>
+                <h4 class="panel-title" onclick="$('#collapse-${sectionCount}').toggle()">
+                  ${heading}
                 </h4>
               </div>
               <div id="collapse-${sectionCount}" class="panel-collapse collapse ${showByDefault ? 'in' : ''}">
@@ -172,17 +172,64 @@ async function autoGenerate(apkgFile, cmd) {
             collapsablePanels += generateCollapsablePanel(field.displayName, content, !!field.center, i===0)
         }
         return `
-            <div id="${fields[0].name}-field" class="answer-field">
+            <div id="base-container">
               <div class="panel-group">
                 ${collapsablePanels}
               </div>
             </div>
-
+            <script>
+                var deckType = "${fields[0].name}"
+                function onLoadAudio(audioFiles) {
+                    alert(JSON.stringify(audioFiles));
+                }
+                function onLibsLoaded() {
+                    alert("Lib loading succeeded!");
+                }
+                function onLibsFailed() {
+                    alert("Lib loading failed!");
+                }
+            </script>
             <script>${jqueryJs}</script>
             <script>${bootstrapJs}</script>
             <style>${bootstrapCss}</style>
             <style>${bootstrapThemeCss}</style>
+            <script>
+                function loadLibs(files, success_cb, fail_cb, timeout) {
+                    var timer = setTimeout(fail_cb || function(){loadLibs(files, success_cb, fail_cb, timeout)}, timeout || 5000);
+                    var loadCount = 0;
+                    function onLibLoaded() {
+                        loadCount++;
+                        if (loadCount === files.length) {
+                            clearTimeout(timer);
+                            success_cb();
+                        }
+                    }
+                    files.forEach(function(file){
+                        var ext = file.split('.').slice(-1).pop();
+                        if (ext === 'js') {
+                            var script = document.createElement('script');
+                            script.src = file;
+                            script.onload = onLibLoaded;
+                            document.getElementsByTagName('head')[0].appendChild(script);
+                        } else if (ext === 'css') {
+                            var css = document.createElement('link');
+                            css.rel = 'stylesheet'
+                            css.type = 'text/css';
+                            css.href = file;
+                            css.onload = onLibLoaded;
+                            document.getElementsByTagName('head')[0].appendChild(css);
+                        }
+                    })
+                }
+                loadLibs(['_audio.jsonp'], onLibsLoaded, undefined, 1000);
+            </script>
             <style>
+                body {
+                    margin: 1px;
+                }
+                #base-container .panel-title {
+                    cursor: pointer;
+                }
                 #diagram-container {
                     height: 300px;
                     width: 100%;
@@ -215,7 +262,7 @@ async function autoGenerate(apkgFile, cmd) {
             }
             if (!isEditMode) {
                 var interval = setInterval(function(){
-                    if (!!document.getElementById('container')) {
+                    if (!!document.getElementById('base-container')) {
                         clearInterval(interval)
                     } else {
                         if (typeof (pycmd) !== "undefined") {
@@ -267,6 +314,9 @@ async function autoGenerate(apkgFile, cmd) {
     const model = await apkg.addModel(modelToCreate)
     //console.log(model.tmpls.map(tpl=>{return {name:tpl.name, q: !!tpl.qfmt, a: !!tpl.afmt}}))
 
+    const addedMedia = {
+        audio: {}
+    }
     let chars = []
     for (const [i,line] of wordList.entries()) {
         const lang = line.match(/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/) !== null ? "cn" : "en"
@@ -282,11 +332,25 @@ async function autoGenerate(apkgFile, cmd) {
             if (type === 'word') {
                 const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',line)
                 await apkg.addMedia(mediaToAdd)
+                if (!addedMedia.audio[line]) {
+                    addedMedia.audio[line] = []
+                    const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
+                    for (const [i,filename] of filenames.entries()) {
+                        addedMedia.audio[line].push(filename)
+                    }
+                }
             } else if (type === 'sentence') {
                 const words = line.split(' ')
                 for (const word of words) {
                     const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',word)
                     await apkg.addMedia(mediaToAdd)
+                    if (!addedMedia.audio[word]) {
+                        addedMedia.audio[word] = []
+                        const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
+                        for (const [i,filename] of filenames.entries()) {
+                            addedMedia.audio[word].push(filename)
+                        }
+                    }
                 }
             }
 
@@ -294,7 +358,14 @@ async function autoGenerate(apkgFile, cmd) {
                 if (char !== ' ') {
                     chars.push(char)
 
-                    const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',line)
+                    const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',char)
+                    if (!addedMedia.audio[char]) {
+                        addedMedia.audio[char] = []
+                        const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
+                        for (const [i,filename] of filenames.entries()) {
+                            addedMedia.audio[char].push(filename)
+                        }
+                    }
                     mediaToAdd.push(`${mmahConfg.stillSvgsDir}/${char.charCodeAt()}-still.svg`)
                     await apkg.addMedia(mediaToAdd)
                 }
@@ -302,6 +373,8 @@ async function autoGenerate(apkgFile, cmd) {
         }
     }
 
+    await fs.outputFile(`${cmd.tempFolder}/_audio.jsonp`,`onLoadAudio(${JSON.stringify(addedMedia.audio)})`)
+    await apkg.addMedia(`${cmd.tempFolder}/_audio.jsonp`)
     const notes = []
     const vocDataObj = await mmah.getCharData(chars)
     for (let key in vocDataObj) {
@@ -312,9 +385,10 @@ async function autoGenerate(apkgFile, cmd) {
         fieldContentArr.push(itemData.pinyin ? itemData.pinyin.join(' / ') : '')
         fieldContentArr.push(itemData.definition || '')
 
-        const defaultAudio = `${itemData.character}-0.mp3`
-        const hasDefaultAudio = await apkg.hasMedia(defaultAudio)
-        fieldContentArr.push(hasDefaultAudio ? `[sound:${defaultAudio}]` : '')
+        //const defaultAudio = `${itemData.character}-0.mp3`
+        //const hasDefaultAudio = await apkg.hasMedia(defaultAudio)
+        //fieldContentArr.push(hasDefaultAudio ? `[sound:${defaultAudio}]` : '')
+        fieldContentArr.push(JSON.stringify(addedMedia.audio[itemData.character]))
         //fieldContentArr.push(`<img src="${itemData.stillSvg.split(/(\\|\/)/g).pop() || ''}" />`)
         //glob.readdirPromise('*.js')
 

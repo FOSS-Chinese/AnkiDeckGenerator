@@ -495,6 +495,7 @@ class AnkiPackage {
     }
 
     async addMedia(files) {
+        files = Array.isArray(files) ? files : [files]
         const media = await fs.readJSON(this.mediaFile) // TODO: maybe store in this.media
         let maxIndex
         try {
