@@ -25,7 +25,7 @@ class Forvo {
             const ls = $(el).closest('li')
             const ofLinkTxt = $(ls).find('.ofLink').contents().first().text()
             const fromTxt = $(ls).find('.from').contents().first().text()
-            const name = `${hanzi} - by ${ofLinkTxt} ${fromTxt}.${type}`
+            const name = `_${hanzi} - by ${ofLinkTxt} ${fromTxt}.${type}` //.replace(/ /g, '_')
             const onclickCode = $(el).attr('onclick')
             const encodedUrlCmp = onclickCode.match(/,'([^']+)'/g)[2]
             const decodedUrlCmp = new Buffer(encodedUrlCmp, 'base64').toString('utf8')
@@ -34,11 +34,18 @@ class Forvo {
         })
         return urls
     }
-    async downloadAudio(targetDir, hanzi, dialect='zh', type='mp3', overwrite=false, maxDls=0, sleepBetweenDls=100) {
+    async downloadAudio(targetDir, hanzi, dialect='zh', type='mp3', overwrite=false, maxDls=2, sleepBetweenDls=5000) {
+        let existingFiles = await fs.readdir(`${targetDir}`)
+        existingFiles = existingFiles.map(file=>file.split(/(\\|\/)/g).pop())
+        const regex = new RegExp(`^_${hanzi} - .+\.mp3$`, 'g');
+        existingFiles = existingFiles.filter(file=>file.match(regex))
+        existingFiles = existingFiles.map(file=>`${targetDir}/${file}`)
+        if (existingFiles.length > 0)
+            return existingFiles //.map(file=>file.split(/(\\|\/)/g).pop())
         const urls = await this.getAudioUrls(hanzi,dialect,type)
         const filenames = []
         for (const [i,urlObj] of urls.entries()) {
-            if (i!==0 && i>maxDls)
+            if (i!==0 && i>maxDls && maxDls!==0)
                 break
             const filename = urlObj.name //`${hanzi}-${i}.mp3`
             const targetFile = `${targetDir}/${filename}`

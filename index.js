@@ -69,7 +69,7 @@ async function autoGenerate(apkgFile, cmd) {
         }, {
             name: "chineseAudio",
             displayName: "Chinese Audio",
-            html: `<div class="chinese-audio"></div>`, // content will be generated
+            html: `<div class="chinese-audio btn-toolbar"></div>`, // content will be generated
             center: true
         }
     ]
@@ -198,7 +198,8 @@ async function autoGenerate(apkgFile, cmd) {
                             text: '▶ Play ' + audioFile
                         })
                         var audioButton = $('<button/>', {
-                            text: '▶ Play ' + audioFile,
+                            text: '▶ ' + audioFile.replace(/^_[^ ]* - /g, ''),
+                            class: 'btn btn-primary',
                             click: function() {
                                 $('#base-container .chinese-audio .audio-' + i).get(0).play();
                             }
@@ -243,7 +244,7 @@ async function autoGenerate(apkgFile, cmd) {
                         }
                     })
                 }
-                loadLibs(['_jquery-3.js','_bootstrap-3.js','_bootstrap-3.css','_bootstrap-3-theme.css','_audio.jsonp'], onLibsLoaded, onLibsFailed, 1000);
+                loadLibs(['_jquery-3.js','_bootstrap-3.js','_bootstrap-3.css','_bootstrap-3-theme.css','_audio-${baseDeck.baseConf.id}.jsonp'], onLibsLoaded, onLibsFailed, 1000);
             </script>
             <style>
                 body {
@@ -254,6 +255,12 @@ async function autoGenerate(apkgFile, cmd) {
                 }
                 #base-container .hanzi {
                     font-size: 35px;
+                }
+                #base-container .chinese-audio .btn{
+                    width: 100%;
+                }
+                .btn-toolbar .btn {
+                    margin-bottom: 5px;
                 }
                 #diagram-container {
                     height: 300px;
@@ -398,9 +405,9 @@ async function autoGenerate(apkgFile, cmd) {
         }
     }
 
-    await fs.outputFile(`${cmd.tempFolder}/_audio.jsonp`,`onLoadAudio(${JSON.stringify(addedMedia.audio)})`)
-    await apkg.addMedia(`${cmd.tempFolder}/_audio.jsonp`)
-    await fs.remove(`${cmd.tempFolder}/_audio.jsonp`)
+    await fs.outputFile(`${cmd.tempFolder}/_audio-${baseDeck.baseConf.id}.jsonp`,`onLoadAudio(${JSON.stringify(addedMedia.audio)})`)
+    await apkg.addMedia(`${cmd.tempFolder}/_audio-${baseDeck.baseConf.id}.jsonp`)
+    await fs.remove(`${cmd.tempFolder}/_audio-${baseDeck.baseConf.id}.jsonp`)
 
     const notes = []
     const vocDataObj = await mmah.getCharData(chars)
