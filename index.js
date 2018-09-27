@@ -179,76 +179,84 @@ async function autoGenerate(apkgFile, cmd) {
               </div>
             </div>
             <script>
-                var deckType = "${fields[0].name}";
-                var hanzi = "{{hanzi}}";
-                var pinyin = "{{pinyin}}";
-                var english = "{{english}}";
-                var audioFiles = [];
-                function onLoadAudio(af) {
-                    audioFiles = af;
-                }
-                function onLibsLoaded() {
-                    //alert("Lib loading succeeded!");
-                    var audioSection = $('#base-container .chinese-audio');
-                    audioFiles[hanzi].forEach(function(audioFile, i){
-                        var audioEl = $('<audio/>', {
-                            class: 'audio-' + i,
-                            src: audioFile,
-                            type: 'audio/mp3',
-                            text: '▶ Play ' + audioFile
-                        })
-                        var audioButton = $('<button/>', {
-                            text: '▶ ' + audioFile.replace(/^_[^ ]* - /g, ''),
-                            class: 'btn btn-primary',
-                            click: function() {
-                                $('#base-container .chinese-audio .audio-' + i).get(0).play();
-                            }
-                        })
-                        audioSection.append(audioEl);
-                        audioSection.append(audioButton);
-                    });
-                }
-                function onLibsFailed() {
-                    alert("Lib loading failed!");
-                }
-            </script>
-            <script>
-                function loadLibs(files, success_cb, fail_cb, timeout) {
-                    var timer = setTimeout(fail_cb || function(){alert("loadLibs failed!");}, timeout || 5000);
-                    var loadCount = 0;
-                    function onLibLoaded() {
-                        loadCount++;
-                        if (loadCount === files.length) {
-                            clearTimeout(timer);
-                            success_cb();
+                try {
+                    var deckType = "${fields[0].name}";
+                    var hanzi = "{{hanzi}}";
+                    var pinyin = "{{pinyin}}";
+                    var english = "{{english}}";
+
+                    function playAudio(audioFile) {
+                        if (navigator.platform === 'Win32') {
+                            if (typeof py === 'object' && typeof py.link === 'function')
+                                py.link('ankiplay'+audioFile);
+                        } else {
+                            new Audio(audioFile).play();
                         }
                     }
-                    files.forEach(function(file){
-                        if (file[0] !== '_')
-                            alert("Error: Please rename '" + file + "' to '_" + file + "'!");
-                        var ext = file.split('.').slice(-1).pop();
-                        if (ext === 'js' || ext === 'jsonp') {
-                            var script = document.createElement('script');
-                            script.src = file;
-                            script.addEventListener ("load", onLibLoaded);
-                            //script.onload = onLibLoaded;
-                            document.getElementsByTagName('head')[0].appendChild(script);
-                        } else if (ext === 'css') {
-                            var css = document.createElement('link');
-                            css.rel = 'stylesheet'
-                            css.type = 'text/css';
-                            css.href = file;
-                            css.addEventListener ("load", onLibLoaded);
-                            //css.onload = onLibLoaded;
-                            document.getElementsByTagName('head')[0].appendChild(css);
+
+                    var audioFiles = [];
+                    function onLoadAudio(af) {
+                        audioFiles = af;
+                    }
+                    function onLibsLoaded() {
+                        //alert("Lib loading succeeded!");
+                        $(".panel-body").each(function(){
+                            if($.trim($(this).html())=='')
+                                $(this).parent().parent().hide()
+                        });
+                        var audioSection = document.querySelector('#base-container').querySelector('.chinese-audio');
+                        audioFiles[hanzi].forEach(function(audioFile, i) {
+                            var strippedName = audioFile.replace(/^_[^ ]* - /g, '').replace(/.mp3$/, '');
+                            var onclickContent = "playAudio('" + audioFile + "')";
+                            var audioButton = '<button class="btn btn-primary" onclick="' + onclickContent + '">' +  '▶ ' + strippedName + '</button>';
+                            audioSection.innerHTML=audioSection.innerHTML+audioButton;
+                        });
+                    }
+                    function onLibsFailed() {
+                        alert("Lib loading failed!");
+                    }
+
+                    function loadLibs(files, success_cb, fail_cb, timeout) {
+                        var timer = setTimeout(fail_cb || function(){alert("loadLibs failed!");}, timeout || 5000);
+                        var loadCount = 0;
+                        function onLibLoaded() {
+                            loadCount++;
+                            if (loadCount === files.length) {
+                                clearTimeout(timer);
+                                success_cb();
+                            }
                         }
-                    })
+                        files.forEach(function(file){
+                            if (file[0] !== '_')
+                                alert("Error: Please rename '" + file + "' to '_" + file + "'!");
+                            var ext = file.split('.').slice(-1).pop();
+                            if (ext === 'js' || ext === 'jsonp') {
+                                var script = document.createElement('script');
+                                script.src = file;
+                                script.addEventListener ("load", onLibLoaded);
+                                //script.onload = onLibLoaded;
+                                document.getElementsByTagName('head')[0].appendChild(script);
+                            } else if (ext === 'css') {
+                                var css = document.createElement('link');
+                                css.rel = 'stylesheet'
+                                css.type = 'text/css';
+                                css.href = file;
+                                css.addEventListener ("load", onLibLoaded);
+                                //css.onload = onLibLoaded;
+                                document.getElementsByTagName('head')[0].appendChild(css);
+                            }
+                        })
+                    }
+                    loadLibs(['_jquery-3.js','_bootstrap-3.js','_audio-${baseDeck.baseConf.id}.jsonp'], onLibsLoaded, onLibsFailed, 1000);
+                    loadLibs(['_bootstrap-3.css','_bootstrap-3-theme.css'], function(){}, function(){}, 1000);
+                } catch(err) {
+                    document.body.innerHTML = err;
                 }
-                loadLibs(['_jquery-3.js','_bootstrap-3.js','_bootstrap-3.css','_bootstrap-3-theme.css','_audio-${baseDeck.baseConf.id}.jsonp'], onLibsLoaded, onLibsFailed, 1000);
             </script>
             <style>
                 body {
                     margin: 1px;
+                    font-size: 20px;
                 }
                 #base-container .panel-heading {
                     cursor: pointer;
@@ -272,14 +280,6 @@ async function autoGenerate(apkgFile, cmd) {
                     width: 100%;
                 }
             </style>
-            <script>
-            $(function(){
-                $(".panel-body").each(function(){
-                    if($.trim($(this).html())=='')
-                        $(this).parent().parent().hide()
-                })
-            });
-            </script>
         `
     }
 
