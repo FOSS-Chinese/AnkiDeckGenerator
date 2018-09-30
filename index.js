@@ -69,7 +69,7 @@ async function autoGenerate(apkgFile, cmd) {
         }, {
             name: "chineseAudio",
             displayName: "Chinese Audio",
-            html: `<div class="chinese-audio btn-toolbar"></div>`, // content will be generated
+            html: `<div class="chinese-audio"></div>`, // content will be generated
             center: true
         }
     ]
@@ -172,12 +172,29 @@ async function autoGenerate(apkgFile, cmd) {
             const content = field.html || `{{${field.name}}}`
             collapsablePanels += generateCollapsablePanel(field.displayName, content, !!field.center, i===0)
         }
+        // TODO: Implement mustache templating
         return `
             <div id="base-container">
               <div class="panel-group">
                 ${collapsablePanels}
               </div>
             </div>
+
+            <div class="modal" id="popup" role="dialog">
+              <div class="modal-dialog modal-lg" >
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">Dictionary</h4>
+                  </div>
+                  <div class="modal-body">
+                    <div><button onclick="Popup.Back();">Back</button></div>
+                    <div id="popup-content"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <script>
                 try {
                     var deckType = "${fields[0].name}";
@@ -186,13 +203,37 @@ async function autoGenerate(apkgFile, cmd) {
                     var english = "{{english}}";
 
                     function playAudio(audioFile) {
-                        if (navigator.platform === 'Win32') {
-                            if (typeof py === 'object' && typeof py.link === 'function')
-                                py.link('ankiplay'+audioFile);
-                        } else {
+                        try {
                             new Audio(audioFile).play();
+                        } catch(html5Err) {
+                            try {
+                                py.link('ankiplay'+audioFile);
+                            } catch(ankiplayErr) {
+                                alert("Your version of Anki doesn't seem to support audio playback from buttons. :(");
+                            }
                         }
                     }
+
+                    var Popup = {
+                        History: [],
+                        Open: function(site,noPush) {
+                            if (!noPush)
+                                Popup.History.push(site)
+                            var popupContent = '<' + 'img src="_' + hanzi.charCodeAt() + '-still.svg"/>'
+                            $("#popup-content").html(popupContent); // TODO:: generate proper page
+                            $('#popup').modal('show');
+                        },
+                        Back: function() {
+                            if (Popup.History.length > 1)
+                                Popup.Open(Popup.History.pop(),true);
+                            else
+                                Popup.Clear();
+                        },
+                        Clear: function() {
+                            $('#popup').modal('hide');
+                            Popup.History=[];
+                        }
+                    };
 
                     var audioFiles = [];
                     function onLoadAudio(af) {
@@ -204,13 +245,27 @@ async function autoGenerate(apkgFile, cmd) {
                             if($.trim($(this).html())=='')
                                 $(this).parent().parent().hide()
                         });
-                        var audioSection = document.querySelector('#base-container').querySelector('.chinese-audio');
+
+                        $('body').on('click', '.hanzi', function(event) {
+                            Popup.Open(event.target.innerHTML);
+                        });
+                        $('#popup').on('hidden.bs.modal', function () {
+                            Popup.Clear();
+                        });
+
+                        var audioButtons = "";
                         audioFiles[hanzi].forEach(function(audioFile, i) {
                             var strippedName = audioFile.replace(/^_[^ ]* - /g, '').replace(/.mp3$/, '');
                             var onclickContent = "playAudio('" + audioFile + "')";
                             var audioButton = '<button class="btn btn-primary" onclick="' + onclickContent + '">' +  '▶ ' + strippedName + '</button>';
-                            audioSection.innerHTML=audioSection.innerHTML+audioButton;
+                            audioButtons += audioButton;
                         });
+                        var msg = "";
+                        if (typeof Audio === 'undefined')
+                             msg = '<div style="position:relative;bottom:-6px;font-size: 8px">If audio is not working for you, install the "Replay buttons on card" addon (Code: 498789867).</div>';
+
+                        var audioSectionEl = document.querySelector('#base-container').querySelector('.chinese-audio');
+                        audioSectionEl.innerHTML = '<div class="btn-toolbar">' + audioButtons + '</div>' + msg;
                     }
                     function onLibsFailed() {
                         alert("Lib loading failed!");
@@ -261,11 +316,19 @@ async function autoGenerate(apkgFile, cmd) {
                 #base-container .panel-heading {
                     cursor: pointer;
                 }
+                .hanzi {
+                    cursor: pointer;
+                }
+                .panel-heading {
+                    -webkit-user-select: none;
+                    user-select:none;
+                }
                 #base-container .hanzi {
                     font-size: 35px;
                 }
                 #base-container .chinese-audio .btn{
                     width: 100%;
+                    text-align:left;
                 }
                 .btn-toolbar .btn {
                     margin-bottom: 5px;
@@ -274,7 +337,7 @@ async function autoGenerate(apkgFile, cmd) {
                     height: 300px;
                     width: 100%;
                     text-align: left;
-                    overflow-y: scroll
+                    overflow-y: scroll;
                 }
                 #diagram-container > img {
                     width: 100%;
@@ -285,32 +348,32 @@ async function autoGenerate(apkgFile, cmd) {
 
     const questionSkipTemplate = `
         <script>
-            var isEditMode = true
-            var scriptEls = document.getElementsByTagName('script')
+            var isEditMode = true;
+            var scriptEls = document.getElementsByTagName('script');
             for (var i = 0; i < scriptEls.length; i++) {
-                var tag = scriptEls[i]
+                var tag = scriptEls[i];
                 if (tag.innerHTML.indexOf('jQuery JavaScript Library') !== -1 && tag.innerHTML.indexOf('isEditMode') === -1)
-                    isEditMode = false
+                    isEditMode = false;
             }
             if (!isEditMode) {
                 var interval = setInterval(function(){
                     if (!!document.getElementById('base-container')) {
-                        clearInterval(interval)
+                        clearInterval(interval);
                     } else {
                         if (typeof (pycmd) !== "undefined") {
-                            pycmd('ans')
+                            pycmd('ans');
                         } else if (typeof (py) !== "undefined") {
-                            py.link('ans')
+                            py.link('ans');
                         }
                     }
                 },100)
                 setTimeout(function() {
-                    clearInterval(interval)
+                    clearInterval(interval);
                 },5000)
             }
         </script>
         <div>
-            If you're using AnkiDroid, please adjust your settings accordingly:<br/>
+            If you're using AnkiDroid, you should adjust your settings accordingly:<br/>
             [Settings] -> [Reviewing] -> Check [Automatic display answer]<br/>
             [Settings] -> [Reviewing] -> Set [Time to show answer] to [1 s]<br/>
             [Settings] -> [Reviewing] -> Set [Time to show next question] to [0 s]

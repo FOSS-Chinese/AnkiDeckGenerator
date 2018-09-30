@@ -507,7 +507,7 @@ class AnkiPackage {
             maxIndex++
             const filename = file.split(/(\\|\/)/g).pop()
             await fs.copy(file,`${this.tempDir}/${maxIndex}`)
-            media[maxIndex.toString()] = filename
+            media[maxIndex.toString()] = filename.startsWith('_') ? filename : `_${filename}`
         }
         return await fs.writeJSON(this.mediaFile, media)
     }
