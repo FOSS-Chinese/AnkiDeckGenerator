@@ -4,12 +4,15 @@
 const program = require('commander')
 const fs = require('fs-extra')
 const JSZip = require("jszip")
-const glob = require("glob")
+const mustache = require('mustache')
 
 const packageInfo = require('./package.json')
 const AnkiPackage = require('./AnkiPackage')
 const MakeMeAHanzi = require('./MakeMeAHanzi')
 const Forvo = require("./Forvo")
+
+global.Promise = require("bluebird")
+Promise.longStackTraces()
 
 const forvo = new Forvo()
 
@@ -166,219 +169,24 @@ async function autoGenerate(apkgFile, cmd) {
         `
     }
 
-    function generateTemplateHtml(fields) {
+
+    async function generateTemplateHtml(fields) {
         let collapsablePanels = ''
         for (let [i,field] of fields.entries()) {
             const content = field.html || `{{${field.name}}}`
             collapsablePanels += generateCollapsablePanel(field.displayName, content, !!field.center, i===0)
         }
-        // TODO: Implement mustache templating
-        return `
-            <div id="base-container">
-              <div class="panel-group">
-                ${collapsablePanels}
-              </div>
-            </div>
-
-            <div class="modal" id="popup" role="dialog">
-              <div class="modal-dialog modal-lg" >
-                <div class="modal-content">
-                  <div class="modal-header">
-                    <button type="button" class="close" data-dismiss="modal">&times;</button>
-                    <h4 class="modal-title">Dictionary</h4>
-                  </div>
-                  <div class="modal-body">
-                    <div><button onclick="Popup.Back();">Back</button></div>
-                    <div id="popup-content"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <script>
-                try {
-                    var deckType = "${fields[0].name}";
-                    var hanzi = "{{hanzi}}";
-                    var pinyin = "{{pinyin}}";
-                    var english = "{{english}}";
-
-                    function playAudio(audioFile) {
-                        try {
-                            new Audio(audioFile).play();
-                        } catch(html5Err) {
-                            try {
-                                py.link('ankiplay'+audioFile);
-                            } catch(ankiplayErr) {
-                                alert("Your version of Anki doesn't seem to support audio playback from buttons. :(");
-                            }
-                        }
-                    }
-
-                    var Popup = {
-                        History: [],
-                        Open: function(site,noPush) {
-                            if (!noPush)
-                                Popup.History.push(site)
-                            var popupContent = '<' + 'img src="_' + hanzi.charCodeAt() + '-still.svg"/>'
-                            $("#popup-content").html(popupContent); // TODO:: generate proper page
-                            $('#popup').modal('show');
-                        },
-                        Back: function() {
-                            if (Popup.History.length > 1)
-                                Popup.Open(Popup.History.pop(),true);
-                            else
-                                Popup.Clear();
-                        },
-                        Clear: function() {
-                            $('#popup').modal('hide');
-                            Popup.History=[];
-                        }
-                    };
-
-                    var audioFiles = [];
-                    function onLoadAudio(af) {
-                        audioFiles = af;
-                    }
-                    function onLibsLoaded() {
-                        //alert("Lib loading succeeded!");
-                        $(".panel-body").each(function(){
-                            if($.trim($(this).html())=='')
-                                $(this).parent().parent().hide()
-                        });
-
-                        $('body').on('click', '.hanzi', function(event) {
-                            Popup.Open(event.target.innerHTML);
-                        });
-                        $('#popup').on('hidden.bs.modal', function () {
-                            Popup.Clear();
-                        });
-
-                        var audioButtons = "";
-                        audioFiles[hanzi].forEach(function(audioFile, i) {
-                            var strippedName = audioFile.replace(/^_[^ ]* - /g, '').replace(/.mp3$/, '');
-                            var onclickContent = "playAudio('" + audioFile + "')";
-                            var audioButton = '<button class="btn btn-primary" onclick="' + onclickContent + '">' +  '▶ ' + strippedName + '</button>';
-                            audioButtons += audioButton;
-                        });
-                        var msg = "";
-                        if (typeof Audio === 'undefined')
-                             msg = '<div style="position:relative;bottom:-6px;font-size: 8px">If audio is not working for you, install the "Replay buttons on card" addon (Code: 498789867).</div>';
-
-                        var audioSectionEl = document.querySelector('#base-container').querySelector('.chinese-audio');
-                        audioSectionEl.innerHTML = '<div class="btn-toolbar">' + audioButtons + '</div>' + msg;
-                    }
-                    function onLibsFailed() {
-                        alert("Lib loading failed!");
-                    }
-
-                    function loadLibs(files, success_cb, fail_cb, timeout) {
-                        var timer = setTimeout(fail_cb || function(){alert("loadLibs failed!");}, timeout || 5000);
-                        var loadCount = 0;
-                        function onLibLoaded() {
-                            loadCount++;
-                            if (loadCount === files.length) {
-                                clearTimeout(timer);
-                                success_cb();
-                            }
-                        }
-                        files.forEach(function(file){
-                            if (file[0] !== '_')
-                                alert("Error: Please rename '" + file + "' to '_" + file + "'!");
-                            var ext = file.split('.').slice(-1).pop();
-                            if (ext === 'js' || ext === 'jsonp') {
-                                var script = document.createElement('script');
-                                script.src = file;
-                                script.addEventListener ("load", onLibLoaded);
-                                //script.onload = onLibLoaded;
-                                document.getElementsByTagName('head')[0].appendChild(script);
-                            } else if (ext === 'css') {
-                                var css = document.createElement('link');
-                                css.rel = 'stylesheet'
-                                css.type = 'text/css';
-                                css.href = file;
-                                css.addEventListener ("load", onLibLoaded);
-                                //css.onload = onLibLoaded;
-                                document.getElementsByTagName('head')[0].appendChild(css);
-                            }
-                        })
-                    }
-                    loadLibs(['_jquery-3.js','_bootstrap-3.js','_audio-${baseDeck.baseConf.id}.jsonp'], onLibsLoaded, onLibsFailed, 1000);
-                    loadLibs(['_bootstrap-3.css','_bootstrap-3-theme.css'], function(){}, function(){}, 1000);
-                } catch(err) {
-                    document.body.innerHTML = err;
-                }
-            </script>
-            <style>
-                body {
-                    margin: 1px;
-                    font-size: 20px;
-                }
-                #base-container .panel-heading {
-                    cursor: pointer;
-                }
-                .hanzi {
-                    cursor: pointer;
-                }
-                .panel-heading {
-                    -webkit-user-select: none;
-                    user-select:none;
-                }
-                #base-container .hanzi {
-                    font-size: 35px;
-                }
-                #base-container .chinese-audio .btn{
-                    width: 100%;
-                    text-align:left;
-                }
-                .btn-toolbar .btn {
-                    margin-bottom: 5px;
-                }
-                #diagram-container {
-                    height: 300px;
-                    width: 100%;
-                    text-align: left;
-                    overflow-y: scroll;
-                }
-                #diagram-container > img {
-                    width: 100%;
-                }
-            </style>
-        `
+        const afmtTpl = await fs.readFile('afmt.mustache.html','utf8')
+        const afmtTplView = {
+            collapsablePanels: collapsablePanels,
+            baseDeckId: baseDeck.baseConf.id,
+            deckType: fields[0].name,
+            panelCount: sectionCount
+        }
+        return mustache.render(afmtTpl, afmtTplView)
     }
 
-    const questionSkipTemplate = `
-        <script>
-            var isEditMode = true;
-            var scriptEls = document.getElementsByTagName('script');
-            for (var i = 0; i < scriptEls.length; i++) {
-                var tag = scriptEls[i];
-                if (tag.innerHTML.indexOf('jQuery JavaScript Library') !== -1 && tag.innerHTML.indexOf('isEditMode') === -1)
-                    isEditMode = false;
-            }
-            if (!isEditMode) {
-                var interval = setInterval(function(){
-                    if (!!document.getElementById('base-container')) {
-                        clearInterval(interval);
-                    } else {
-                        if (typeof (pycmd) !== "undefined") {
-                            pycmd('ans');
-                        } else if (typeof (py) !== "undefined") {
-                            py.link('ans');
-                        }
-                    }
-                },100)
-                setTimeout(function() {
-                    clearInterval(interval);
-                },5000)
-            }
-        </script>
-        <div>
-            If you're using AnkiDroid, you should adjust your settings accordingly:<br/>
-            [Settings] -> [Reviewing] -> Check [Automatic display answer]<br/>
-            [Settings] -> [Reviewing] -> Set [Time to show answer] to [1 s]<br/>
-            [Settings] -> [Reviewing] -> Set [Time to show next question] to [0 s]
-        </div>
-    `
+    const questionSkipTemplate = await fs.readFile('qfmt.mustache.html','utf8')
 
     const decks = []
     const templates = []
@@ -387,7 +195,7 @@ async function autoGenerate(apkgFile, cmd) {
         const template = {
             name: `${field.name}Template`,
             qfmt: questionSkipTemplate,
-            afmt: generateTemplateHtml(reorderedFields)
+            afmt: await generateTemplateHtml(reorderedFields)
         }
         templates.push(template)
 
@@ -423,7 +231,7 @@ async function autoGenerate(apkgFile, cmd) {
         else
             type = "char"
 
-        if (lang === 'cn') { // TODO get audio for chard and chard form sentences etc
+        if (lang === 'cn') { // TODO get audio for components
             if (type === 'word') {
                 const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',line)
                 await apkg.addMedia(mediaToAdd)
