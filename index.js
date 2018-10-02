@@ -10,11 +10,15 @@ const packageInfo = require('./package.json')
 const AnkiPackage = require('./AnkiPackage')
 const MakeMeAHanzi = require('./MakeMeAHanzi')
 const Forvo = require("./Forvo")
+const ArchChinese = require("./ArchChinese")
 
 global.Promise = require("bluebird")
 Promise.longStackTraces()
 
 const forvo = new Forvo()
+const archChinese = new ArchChinese()
+let archChineseCache = {}
+let archchineseCacheFile = './archchinese-cache.json'
 
 /*
 // BASIC IDEA (DOES NOT REPRESENT ACTUAL IMPLEMENTATION)
@@ -35,7 +39,9 @@ program
     .option('-r, --recursive-audio [boolean]', 'Download audio not only for input file entries, but also for every single word and character found in each entry. Default: false')
     .option('-p, --dictionary-priority-list [comma-separated-string]', 'List of dictionaries (offline and online) to gather data from. (highest priority first. Default: makemeahanzi,forvo,archchinese,mdbg)')
     .action((apkgFile, cmd) => {
-        autoGenerate(apkgFile, cmd).then(console.log).catch(err=>console.error(new Error(err)))
+        autoGenerate(apkgFile, cmd).then(console.log).catch(err=>{
+            fs.outputJson(archchineseCacheFile,archChineseCache).then(()=>{}).catch(e=>console.error)
+        })
     })
 program.parse(process.argv)
 
@@ -133,6 +139,9 @@ async function autoGenerate(apkgFile, cmd) {
     await fs.emptyDir(cmd.tempFolder)
     await fs.writeFile(`${cmd.tempFolder}/media`, '{}')
     await apkg.addMedia([`${cmd.libs}/_jquery-3.js`,`${cmd.libs}/_bootstrap-3.js`,`${cmd.libs}/_bootstrap-3.css`,`${cmd.libs}/_bootstrap-3-theme.css`])
+
+    if (await fs.pathExists(archchineseCacheFile))
+        archChineseCache = await fs.readJson(archchineseCacheFile)
 
     const chineseInputFile = await fs.readFile(cmd.inputFileChinese,'utf8')
     const wordList = chineseInputFile.split(/\r?\n/)
@@ -247,8 +256,8 @@ async function autoGenerate(apkgFile, cmd) {
                 }
             } else if (type === 'sentence') {
                 sentences.push(line)
-                const words = line.split(' ')
-                for (const word of words) {
+                const lineWords = line.split(' ')
+                for (const word of lineWords) {
                     const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',word)
                     await apkg.addMedia(mediaToAdd)
                     if (!addedMedia.audio[word]) {
@@ -300,6 +309,37 @@ async function autoGenerate(apkgFile, cmd) {
         fieldContentArr.push(JSON.stringify(addedMedia.audio[itemData.character]))
         //fieldContentArr.push(`<img src="${itemData.stillSvg.split(/(\\|\/)/g).pop() || ''}" />`)
         //glob.readdirPromise('*.js')
+
+        const noteToAdd = {
+            mid: model.id,
+            flds: fieldContentArr,
+            sfld: fields[0].name
+        }
+        const note = await apkg.addNote(noteToAdd)
+        notes.push(note)
+    }
+    for (const [i, word] of words.entries()) {
+        const results = await archChinese.searchWords(word)
+        if (!results || results.length < 1) {
+            console.warn(`Skipping "${word}" as no result was found on ArchChinese.`)
+            continue
+        }
+        const filteredResults = results.filter(r=>r.simplified===word||r.traditional===word)
+        if (filteredResults.length < 1) {
+            console.warn(`Skipping "${word}" as no match was found on ArchChinese.`)
+            continue
+        }
+        const result = filteredResults[0]
+
+        if (!archChineseCache[word])
+            archChineseCache[word] = result
+
+        let fieldContentArr = []
+        fieldContentArr.push(result.simplified)
+        fieldContentArr.push(result.pinyin)
+        fieldContentArr.push(result.english[0])
+
+        fieldContentArr.push(JSON.stringify(addedMedia.audio[word]))
 
         const noteToAdd = {
             mid: model.id,

@@ -11,7 +11,7 @@ function sleep(ms) {
 }
 
 class ArchChinese {
-    constructior() {
+    constructor() {
         this.baseUrl = "http://www.archchinese.com"
         this.wordSearchRoute = "getSimpSentenceWithPinyin6"
         this.sentenceSearchRoute = "getExampleAudio3"
@@ -19,13 +19,17 @@ class ArchChinese {
     async rawSearch(query, searchFor='words', limit=25, offset=0) {
         const responseBody = await rp({
             method: 'POST',
-            uri: `${this.baseUrl}/${searchFor==='words' ? this.wordSearchRoute : this.sentenceSearchRoute}`,
+            url: `${this.baseUrl}/${searchFor==='words' ? this.wordSearchRoute : this.sentenceSearchRoute}`,
             formData: {
-                limit,
-                offset,
+                limit:limit.toString(),
+                offset:offset.toString(),
                 unicode: query.split('').map(l=>l.charCodeAt().toString(16).toUpperCase()).join(', ')
+            },
+            headers: {
+                "user-agent":""
             }
         })
+        sleep(1500)
         // 你好@你好@ni3 hao3@hello,hi,how are you?@9@短@N@[]@1276&你好吗@你好嗎@ni3 hao3 ma5@How are you?, How are you doing?@9@短@N@[]@6&
         return responseBody
     }
@@ -38,30 +42,31 @@ class ArchChinese {
      *  returns array of results. A result is an object with a few properties.
      *  [
      *      {
-     *          simplified: (string) hanzi word simplified,
-     *          traditional: (string) hanzi word traditional,
+     *          simplified: (string) hanzi word simplified
+     *          traditional: (string) hanzi word traditional
      *          pinyin: (string) pinyin
-     *          english: (array of strings) english definitions,
-     *          wordType: (string) type of word (e.g. 名)
+     *          english: (array of strings) english definitions
      *      },
      *      ...
      *   ]
      */
     async searchWords(query, limit=25, offset=0) {pinyinUtils
-        const responseBody = this.rawSearch(query, 'words', limit, offset)
-        const list = responseBody.slice(0,-1).split(/[@&]+/)
-        const chunkSize = 9
-        const results = new Array(Math.ceil(list.length / chunkSize)).fill().map((_,i) => list.slice(i*chunkSize,i*chunkSize+chunkSize))
+        const responseBody = await this.rawSearch(query, 'words', limit, offset)
+        const rawResults = responseBody.slice(0,-1).split('&')
+
         const finalResults = []
-        for (const [i,result] of results.entries()) {
+        for (const [i,rawResult] of rawResults.entries()) {
+            //console.log(rawResult)
+            const result = rawResult.split('@')
             finalResults[i] = {
                 simplified: result[0],
                 traditional: result[1],
-                pinyin: pinyinUtils.numberToMark(result[3]),
-                english: result[4].split(','),
-                //actualChunkSize: result[5],
-                wordType: result[6],
-                //unknownInt1: result[7],
+                pinyin: pinyinUtils.numberToMark(result[2]),
+                english: result[3].includes(';') ? result[3].split(';') : result[3].split(','),
+                //unknownInt1: result[4],
+                //wordType: result[5], // sometimes missing
+                //unknownYesNoLetter: result[6],
+                //unknownArray: result[7],
                 //unknownInt2: result[8]
             }
         }
@@ -91,7 +96,7 @@ class ArchChinese {
      *   ]
      */
     async searchSentences(query, limit=25, offset=0) {
-        const responseBody = this.rawSearch(query, 'sentences', limit, offset)
+        const responseBody = await this.rawSearch(query, 'sentences', limit, offset)
         const results = responseBody.slice(0,-1).split('~')
 
         const finalResults = []
@@ -101,7 +106,7 @@ class ArchChinese {
                     simplified: item[0],
                     traditional: item[1],
                     pinyin: item[2].split(/,\s|,/).map(p=>pinyinUtils.numberToMark(p)),
-                    english: item[3].split(',')
+                    english: item[3].includes(';') ? item[3].split(';') : item[3].split(',')
                 }
             })
             const words = []
@@ -112,7 +117,7 @@ class ArchChinese {
                         simplified: itemSplit[0],
                         traditional: itemSplit[0],
                         pinyin: [pinyinUtils.numberToMark(itemSplit[1])],
-                        english: itemSplit[2].split(',')
+                        english: itemSplit[2].includes(';') ? itemSplit[2].split(';') : itemSplit[2].split(',')
                     }
                 } else {
                     words[j] = singleChars.filter(char=>char===itemSplit[0])[0]
@@ -124,15 +129,13 @@ class ArchChinese {
                 pinyin: pinyinUtils.numberToMark(result[2]),
                 //unknownLetter1: result[3],
                 //unicodeSimplified: result[4].split('|'),
-                english: result[5],
+                english: result[5].includes(';') ? result[5].split(';') : result[5].split(','),
                 words: words,
                 //unknownInt1: result[7],
                 //unknownInt2: result[8]
             }
         }
-        const chunkSize = 9
-        results = new Array(Math.ceil(list.length / chunkSize)).fill().map((_,i) => list.slice(i*chunkSize,i*chunkSize+chunkSize))
-        return results
+        return finalResults
     }
 }
 
@@ -181,4 +184,4 @@ NpinyinUtils.numberToMark(
 严重急性呼吸系统综合症@嚴重急性呼吸系統綜合症@yan2 zhong4 ji2 xing4 hu1 xi1 xi4 tong3 zong1 he2 zheng4@severe acute respiratory syndrome (SARS)@9@ @N@ @1&二级头呼吸器@二級頭呼吸器@er4 ji2 tou2 hu1 xi1 qi4@(diving) regulator; demand valve@9@ @N@ @1&呼吸器@呼吸器@hu1 xi1 qi4@ventilator (artificial breathing apparatus used in hospitals)@9@ @N@ @1&呼吸管@呼吸管@hu1 xi1 guan3@snorkel@9@ @N@ @1&呼吸调节器@呼吸調節器@hu1 xi1 tiao2 jie2 qi4@regulator (diving)@9@ @N@ @1&备用二级头呼吸器@備用二級頭呼吸器@bei4 yong4 er4 ji2 tou2 hu1 xi1 qi4@backup regulator; octopus (diving)@9@ @N@ @1&密闭式循环再呼吸水肺系统@密閉式循環再呼吸水肺系統@mi4 bi4 shi4 xun2 huan2 zai4 hu1 xi1 shui3 fei4 xi4 tong3@closed-circuit rebreather scuba (diving)@9@ @N@ @1&睡眠呼吸暂停@睡眠呼吸暫停@shui4 mian2 hu1 xi1 zan4 ting2@central sleep apnea (CSA)@9@ @N@ @1&
 */
 
-module.exports = Forvo
+module.exports = ArchChinese
