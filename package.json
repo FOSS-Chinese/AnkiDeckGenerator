@@ -12,6 +12,7 @@
     "jszip": "^3.1.5",
     "lodash": "^4.17.10",
     "mustache": "^3.0.0",
+    "pinyin-utils": "^1.6.0",
     "request-promise": "^4.2.2",
     "sqlite3": "^4.0.2"
   },

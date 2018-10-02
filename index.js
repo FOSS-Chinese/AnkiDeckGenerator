@@ -221,6 +221,8 @@ async function autoGenerate(apkgFile, cmd) {
         audio: {}
     }
     let chars = []
+    let words = []
+    let sentences = []
     for (const [i,line] of wordList.entries()) {
         const lang = line.match(/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/) !== null ? "cn" : "en"
         let type
@@ -233,6 +235,7 @@ async function autoGenerate(apkgFile, cmd) {
 
         if (lang === 'cn') { // TODO get audio for components
             if (type === 'word') {
+                words.push(line)
                 const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',line)
                 await apkg.addMedia(mediaToAdd)
                 if (!addedMedia.audio[line]) {
@@ -243,6 +246,7 @@ async function autoGenerate(apkgFile, cmd) {
                     }
                 }
             } else if (type === 'sentence') {
+                sentences.push(line)
                 const words = line.split(' ')
                 for (const word of words) {
                     const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',word)
