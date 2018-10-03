@@ -23,7 +23,7 @@ class ArchChinese {
             formData: {
                 limit:limit.toString(),
                 offset:offset.toString(),
-                unicode: query.split('').map(l=>l.charCodeAt().toString(16).toUpperCase()).join(', ')
+                unicode: query.replace(/\s/g,'').split('').map(l=>l.charCodeAt().toString(16).toUpperCase()).join(', ')
             },
             headers: {
                 "user-agent":""
@@ -50,13 +50,14 @@ class ArchChinese {
      *      ...
      *   ]
      */
-    async searchWords(query, limit=25, offset=0) {pinyinUtils
+    async searchWords(query, limit=25, offset=0) {
         const responseBody = await this.rawSearch(query, 'words', limit, offset)
+        if (!responseBody)
+            return []
         const rawResults = responseBody.slice(0,-1).split('&')
 
         const finalResults = []
         for (const [i,rawResult] of rawResults.entries()) {
-            //console.log(rawResult)
             const result = rawResult.split('@')
             finalResults[i] = {
                 simplified: result[0],
@@ -97,11 +98,15 @@ class ArchChinese {
      */
     async searchSentences(query, limit=25, offset=0) {
         const responseBody = await this.rawSearch(query, 'sentences', limit, offset)
-        const results = responseBody.slice(0,-1).split('~')
+        if (!responseBody)
+            return []
+        const rawResults = responseBody.slice(0,-1).split('~')
 
         const finalResults = []
-        for (const [i,result] of results.entries()) {
-            const singleChars = result[6].map(item=>{
+        for (const [i,rawResult] of rawResults.entries()) {
+            const result = rawResult.split('^')
+            const singleChars = result[6].split('&').map(rawItem=>{
+                const item = rawItem.split('@')
                 return {
                     simplified: item[0],
                     traditional: item[1],
@@ -110,7 +115,7 @@ class ArchChinese {
                 }
             })
             const words = []
-            for (const [j,item] of result[1].entries()) {
+            for (const [j,item] of result[1].split('&').entries()) {
                 const itemSplit = item.split('@')
                 if (itemSplit.length > 1) {
                     words[j] = {
@@ -120,7 +125,7 @@ class ArchChinese {
                         english: itemSplit[2].includes(';') ? itemSplit[2].split(';') : itemSplit[2].split(',')
                     }
                 } else {
-                    words[j] = singleChars.filter(char=>char===itemSplit[0])[0]
+                    words[j] = singleChars.filter(char=>char.simplified===itemSplit[0])[0]
                 }
             }
             finalResults[i] = {

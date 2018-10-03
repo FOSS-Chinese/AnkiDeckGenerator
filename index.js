@@ -41,6 +41,7 @@ program
     .action((apkgFile, cmd) => {
         autoGenerate(apkgFile, cmd).then(console.log).catch(err=>{
             fs.outputJson(archchineseCacheFile,archChineseCache).then(()=>{}).catch(e=>console.error)
+            console.error(err)
         })
     })
 program.parse(process.argv)
@@ -63,7 +64,7 @@ async function autoGenerate(apkgFile, cmd) {
         {
             name: "hanzi",
             displayName: "Hànzì",
-            html: `<span class="hanzi">{{hanzi}}</span>`,
+            html: `<span class="hanzi" id="base-hanzi">{{hanzi}}</span>`,
             center: true
         }, {
             name: "pinyin",
@@ -256,8 +257,19 @@ async function autoGenerate(apkgFile, cmd) {
                 }
             } else if (type === 'sentence') {
                 sentences.push(line)
+                const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',line)
+                await apkg.addMedia(mediaToAdd)
+                if (!addedMedia.audio[line]) {
+                    addedMedia.audio[line] = []
+                    const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
+                    for (const [i,filename] of filenames.entries()) {
+                        addedMedia.audio[line].push(filename)
+                    }
+                }
+
                 const lineWords = line.split(' ')
                 for (const word of lineWords) {
+                    // words.push(word) // TODO: add cmd option for this
                     const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',word)
                     await apkg.addMedia(mediaToAdd)
                     if (!addedMedia.audio[word]) {
@@ -272,7 +284,7 @@ async function autoGenerate(apkgFile, cmd) {
 
             for (const char of line.split('')) {
                 if (char !== ' ') {
-                    chars.push(char)
+                    //chars.push(char) // TODO: add cmd option to enable this
 
                     const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',char)
                     if (!addedMedia.audio[char]) {
@@ -299,7 +311,7 @@ async function autoGenerate(apkgFile, cmd) {
         let item = vocDataObj[key]
         let itemData = vocDataObj[item.character]
         let fieldContentArr = []
-        fieldContentArr.push(itemData.character || '')
+        fieldContentArr.push(item.character || '')
         fieldContentArr.push(itemData.pinyin ? itemData.pinyin.join(' / ') : '')
         fieldContentArr.push(itemData.definition || '')
 
@@ -319,20 +331,20 @@ async function autoGenerate(apkgFile, cmd) {
         notes.push(note)
     }
     for (const [i, word] of words.entries()) {
-        const results = await archChinese.searchWords(word)
-        if (!results || results.length < 1) {
-            console.warn(`Skipping "${word}" as no result was found on ArchChinese.`)
-            continue
+        if (!archChineseCache[word]) {
+            const results = await archChinese.searchWords(word)
+            if (!results || results.length < 1) {
+                console.warn(`Skipping word "${word}" as no result was found on ArchChinese.`)
+                continue
+            }
+            const filteredResults = results.filter(r=>r.simplified===word||r.traditional===word)
+            if (filteredResults.length < 1) {
+                console.warn(`Skipping word "${word}" as no match was found on ArchChinese.`)
+                continue
+            }
+            archChineseCache[word] = filteredResults[0]
         }
-        const filteredResults = results.filter(r=>r.simplified===word||r.traditional===word)
-        if (filteredResults.length < 1) {
-            console.warn(`Skipping "${word}" as no match was found on ArchChinese.`)
-            continue
-        }
-        const result = filteredResults[0]
-
-        if (!archChineseCache[word])
-            archChineseCache[word] = result
+        const result = archChineseCache[word]
 
         let fieldContentArr = []
         fieldContentArr.push(result.simplified)
@@ -340,6 +352,37 @@ async function autoGenerate(apkgFile, cmd) {
         fieldContentArr.push(result.english[0])
 
         fieldContentArr.push(JSON.stringify(addedMedia.audio[word]))
+
+        const noteToAdd = {
+            mid: model.id,
+            flds: fieldContentArr,
+            sfld: fields[0].name
+        }
+        const note = await apkg.addNote(noteToAdd)
+        notes.push(note)
+    }
+    for (const [i, sentence] of sentences.entries()) {
+        if (!archChineseCache[sentence]) {
+            const results = await archChinese.searchSentences(sentence)
+            if (results.length < 1) {
+                console.warn(`Skipping "${sentence}" as no result was found on ArchChinese.`)
+                continue
+            }
+            const filteredResults = results.filter(r=>r.simplified.replace(/\s/g,'')===sentence.replace(/\s/g,'')||r.traditional.replace(/\s/g,'')===sentence.replace(/\s/g,''))
+            if (filteredResults.length < 1) {
+                console.warn(`Skipping "${sentence}" as no match was found on ArchChinese.`)
+                continue
+            }
+            archChineseCache[sentence] = filteredResults[0]
+        }
+        const result = archChineseCache[sentence]
+
+        let fieldContentArr = []
+        fieldContentArr.push(sentence)
+        fieldContentArr.push(result.pinyin)
+        fieldContentArr.push(result.english[0])
+
+        fieldContentArr.push(JSON.stringify(addedMedia.audio[sentence]))
 
         const noteToAdd = {
             mid: model.id,
@@ -410,95 +453,3 @@ async function autoGenerate(apkgFile, cmd) {
     await fs.remove(cmd.tempFolder)
     return "Done!"
 }
-/*
-    program
-        .command('update <file-path>')
-        .option('-c, --input-file-chinese <file-path>', 'File containing a json-array of Chinese characters, words and/or sentences')
-        .option('-t, --temp-folder <folder-path>', 'Folder to be used/created for temporary files')
-        .action((apkgFile, cmd) => {
-            cmd.tempFolder = cmd.tempFolder || './anki-deck-generator-temp'
-            fs.emptyDir(cmd.tempFolder).then(() => {
-                return fs.readFile(apkgFile)
-            }).then(zipData => {
-                return JSZip.loadAsync(zipData)
-            }).then(zip => {
-                for (const filename of Object.keys(zip.files)) {
-                    if (filename.includes('.anki2')) {
-                        zip.files[filename].async('uint8array').then(fileData => {
-                            return fs.writeFile(`${cmd.tempFolder}/${filename}`, fileData)
-                        })
-                    }
-                }
-            }).then(() => {
-                console.log("Done!")
-            }).catch(console.error)
-        })
-*/
-
-
-
-
-/*
-if (!program.apkgFile || !program.inputFileChinese) {
-    throw new Error("Errorreturn fs.readFile(apkgFile)
-        }).then(zipData => {
-            return JSZip.loadAsync(zipData)
-        }).then(zip => {
-            for (const filename of Object.keys(zip.files)) {
-                if (filename.includes('.anki2')) {
-                    zip.files[filename].async('uint8array').then(fileData => {
-                        return fs.writeFile(`${cmd.tempFolder}/${filename}`, fileData)
-                    })
-                }
-            }, missing required parameter(s)!")
-}
-program.tempFolder = program.tempFolder || './temp'
-
-const apkg = new AnkiPackage('./db.anki2')
-
-fs.ensureDir(program.tempFolder).then(() => {
-    return fs.readFile(program.inputFileChinese,'utf8')
-}).then(fileContents => {
-    return apkg.init()
-}).then(() => {
-    return apkg.addDeck({
-        name: "NewDeck",
-        desc: "Test deck"
-    })
-}).then(() => {
-    console.log("Done!")
-}).catch(console.error)
-*/
-    /*const chineseInputArr = fileContents.split(/\r?\n/)
-    return ankiDeckGen.mmah.getCharData(chineseInputArr).then(dataObj => {
-        for (let key in dataObj) {
-            let item = dataObj[key]
-            let itemData = dataObj[item.character]
-            let lineArr = []
-            lineArr.push(itemData.character || '')
-            lineArr.push(itemData.definition || '')
-            lineArr.push(itemData.pinyin ? itemData.pinyin.join(' / ') : '')
-            lineArr.push(itemData.decomposition || '')
-            lineArr.push(itemData.etymology && itemData.etymology.type ? itemData.etymology.type : '')
-            lineArr.push(itemData.etymology && itemData.etymology.hint ? itemData.etymology.hint : '')
-            lineArr.push(itemData.etymology && itemData.etymology.phonetic ? itemData.etymology.phonetic : '')
-            lineArr.push(itemData.etymology && itemData.etymology.semantic ? itemData.etymology.semantic : '')
-            lineArr.push(itemData.radical || '')
-            //lineArr.push(itemData.matches || '')
-            lineArr.push(itemData.charCode || '')
-            lineArr.push(itemData.animatedSvg || '')
-            lineArr.push(itemData.stillSvg || '')
-
-            tsvOutput += `${lineArr.join('\t')}\n`
-        }
-        return tsvOutput
-    })
-})*/
-
-/*
-.then(tsvOutput => {
-    return fs.writeFile(`${program.outputFolder}/data.txt`, tsvOutput)
-}).then(() => {
-    console.log('Done!')
-}).catch(console.error)
-*/

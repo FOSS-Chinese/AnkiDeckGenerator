@@ -9,7 +9,8 @@
     <div class="modal-content">
       <div class="modal-header">
         <button type="button" class="close" data-dismiss="modal">&times;</button>
-        <h4 class="modal-title"><button class="btn btn-primary" onclick="Popup.Back();">Back</button>Dictionary</h4>
+        <button class="btn btn-primary modal-title" onclick="Popup.Back();">Back</button>
+        <!--<h4 class="modal-title center">Dictionary</h4>-->
       </div>
       <div class="modal-body">
         <div id="popup-content"></div>
@@ -62,24 +63,50 @@
             return panelHtml;
         }
 
+        function hanziToHtml(hanzi) {
+            var hanziHtml = '';
+            if (hanzi.indexOf(' ')!==-1) {
+                var words = hanzi.split(' ');
+                words.forEach(function(word) {
+                    hanziHtml += '<span class="hanzi-word">' + word + '</span> ';
+                })
+                hanziHtml = hanziHtml.slice(0,-1)
+            } else if (hanzi.length>1) { // word
+                var chars = hanzi.split('');
+                chars.forEach(function(char) {
+                    hanziHtml += '<span class="hanzi-char">' + char + '</span>';
+                })
+            } else { //char
+                var char = hanzi;
+                hanziHtml = '<span class="hanzi-char">' + char + '</span>';
+            }
+            return hanziHtml
+        }
+
         var Popup = {
             History: [],
             Open: function(site,noPush) {
+                if (site === Popup.History.slice(-1)[0])
+                    return
                 if (!noPush)
-                    Popup.History.push(site)
-                var popupContent = ''
-                popupContent += generatePanel('Hanzi', '`<span class="hanzi">' + hanzi + '</span>', true, true)
-                popupContent += generatePanel('Stroke Order', '<' + 'img src="_' + hanzi.charCodeAt() + '-still.svg"/>', true, true)
-                popupContent += generatePanel('Chinese Audio', '<div class="chinese-audio">' + getAudioButtons(hanzi) + '</div>', true, true)
-                popupContent += generatePanel('English', '<span class="english">' + '?TODO' + '</span>', true, true)
+                    Popup.History.push(site);
+
+                var popupContent = '';
+                popupContent += generatePanel('Hanzi', '<span class="hanzi">' + hanziToHtml(site) + '</span>', true, true);
+                if (site.length === 1)
+                    popupContent += generatePanel('Stroke Order', '<' + 'img src="_' + site.charCodeAt() + '-still.svg"/>', true, true);
+                popupContent += generatePanel('Chinese Audio', '<div class="chinese-audio">' + getAudioButtons(site) + '</div>', true, true);
+                popupContent += generatePanel('English', '<span class="english">' + '?TODO' + '</span>', true, true);
                 $("#popup-content").html(popupContent); // TODO:: generate proper page
                 $('#popup').modal('show');
             },
             Back: function() {
-                if (Popup.History.length > 1)
-                    Popup.Open(Popup.History.pop(),true);
-                else
+                if (Popup.History.length <= 1)
                     Popup.Clear();
+                if (Popup.History.length > 0) {
+                    Popup.History.pop()
+                    Popup.Open(Popup.History.pop());
+                }
             },
             Clear: function() {
                 $('#popup').modal('hide');
@@ -108,10 +135,11 @@
         }
         function onLibsLoaded() {
             //alert("Lib loading succeeded!");
-            $(".p#base-container anel-body").each(function(){
+            /*$(".p#base-container anel-body").each(function(){
                 if($.trim($(this).html())=='')
                     $(this).parent().parent().hide()
-            });
+            });*/
+            $('#base-hanzi').html(hanziToHtml(hanzi))
 
             $('body').on('click', '.hanzi', function(event) {
                 Popup.Open(event.target.innerHTML);
@@ -175,7 +203,7 @@
     .panel-heading {
         cursor: pointer;
     }
-    .hanzi {
+    .hanzi > .hanzi-char, .hanzi > .hanzi-word {
         cursor: pointer;
     }
     .panel-heading {

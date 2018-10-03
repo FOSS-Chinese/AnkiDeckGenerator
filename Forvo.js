@@ -15,6 +15,7 @@ class Forvo {
         this.audioBaseUrl = "https://audio00.forvo.com/audios/mp3"
     }
     async getAudioUrls(hanzi, dialect='zh', type='mp3') {
+        hanzi = hanzi.replace(/\s/g,'')
         const html = await rp(`${this.searchBaseUrl}/${encodeURIComponent(hanzi)}/`)
         const $ = cheerio.load(html)
         const em = $(`#${dialect}`)
