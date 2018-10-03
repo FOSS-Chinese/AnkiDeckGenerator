@@ -19,7 +19,7 @@
   "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "example": "node index.js auto-generate MyNewDeck.apkg -c example-input.txt -n MyNewDeck -d MyDeckDescription"
+    "example": "node index.js auto-generate MyNewPopupDeck.apkg -c example-input.txt -n MyNewPopupDeck -d MyDeckDescription"
   },
   "repository": {
     "type": "git",

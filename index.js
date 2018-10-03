@@ -246,38 +246,68 @@ async function autoGenerate(apkgFile, cmd) {
         if (lang === 'cn') { // TODO get audio for components
             if (type === 'word') {
                 words.push(line)
-                const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',line)
-                await apkg.addMedia(mediaToAdd)
-                if (!addedMedia.audio[line]) {
-                    addedMedia.audio[line] = []
-                    const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
-                    for (const [i,filename] of filenames.entries()) {
-                        addedMedia.audio[line].push(filename)
+                let mediaToAdd
+                try {
+                    mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',line)
+                    await apkg.addMedia(mediaToAdd)
+                    if (!addedMedia.audio[line]) {
+                        addedMedia.audio[line] = []
+                        const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
+                        for (const [i,filename] of filenames.entries()) {
+                            addedMedia.audio[line].push(filename)
+                        }
                     }
+                } catch(e) {
+                    if (e.statusCode === 403)
+                        console.warn(`Forvo blocked download of audio for "${line}". Try again later.`)
+                    else if (e.statusCode === 404)
+                        console.warn(`Forvo audio download for "${line}" returned a 404 Not Found.`)
+                    else
+                        throw e
                 }
             } else if (type === 'sentence') {
                 sentences.push(line)
-                const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',line)
-                await apkg.addMedia(mediaToAdd)
-                if (!addedMedia.audio[line]) {
-                    addedMedia.audio[line] = []
-                    const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
-                    for (const [i,filename] of filenames.entries()) {
-                        addedMedia.audio[line].push(filename)
+                let mediaToAdd
+                try {
+                    mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',line)
+                    await apkg.addMedia(mediaToAdd)
+                    if (!addedMedia.audio[line]) {
+                        addedMedia.audio[line] = []
+                        const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
+                        for (const [i,filename] of filenames.entries()) {
+                            addedMedia.audio[line].push(filename)
+                        }
                     }
+                } catch(e) {
+                    if (e.statusCode === 403)
+                        console.warn(`Forvo blocked download of audio for "${line}". Try again later.`)
+                    else if (e.statusCode === 404)
+                        console.warn(`Forvo audio download for "${line}" returned a 404 Not Found.`)
+                    else
+                        throw e
                 }
 
                 const lineWords = line.split(' ')
                 for (const word of lineWords) {
                     // words.push(word) // TODO: add cmd option for this
-                    const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',word)
-                    await apkg.addMedia(mediaToAdd)
-                    if (!addedMedia.audio[word]) {
-                        addedMedia.audio[word] = []
-                        const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
-                        for (const [i,filename] of filenames.entries()) {
-                            addedMedia.audio[word].push(filename)
+                    let mediaToAdd
+                    try {
+                        mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',word)
+                        await apkg.addMedia(mediaToAdd)
+                        if (!addedMedia.audio[word]) {
+                            addedMedia.audio[word] = []
+                            const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
+                            for (const [i,filename] of filenames.entries()) {
+                                addedMedia.audio[word].push(filename)
+                            }
                         }
+                    } catch(e) {
+                        if (e.statusCode === 403)
+                            console.warn(`Forvo blocked download of audio for "${word}". Try again later.`)
+                        else if (e.statusCode === 404)
+                            console.warn(`Forvo audio download for "${word}" returned a 404 Not Found.`)
+                        else
+                            throw e
                     }
                 }
             }
@@ -285,17 +315,26 @@ async function autoGenerate(apkgFile, cmd) {
             for (const char of line.split('')) {
                 if (char !== ' ') {
                     //chars.push(char) // TODO: add cmd option to enable this
-
-                    const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',char)
-                    if (!addedMedia.audio[char]) {
-                        addedMedia.audio[char] = []
-                        const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
-                        for (const [i,filename] of filenames.entries()) {
-                            addedMedia.audio[char].push(filename)
+                    let mediaToAdd
+                    try {
+                        mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',char)
+                        if (!addedMedia.audio[char]) {
+                            addedMedia.audio[char] = []
+                            const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
+                            for (const [i,filename] of filenames.entries()) {
+                                addedMedia.audio[char].push(filename)
+                            }
                         }
+                        mediaToAdd.push(`${mmahConfg.stillSvgsDir}/${char.charCodeAt()}-still.svg`)
+                        await apkg.addMedia(mediaToAdd)
+                    } catch(e) {
+                        if (e.statusCode === 403)
+                            console.warn(`Forvo blocked download of audio for "${char}". Try again later.`)
+                        else if (e.statusCode === 404)
+                            console.warn(`Forvo audio download for "${char}" returned a 404 Not Found.`)
+                        else
+                            throw e
                     }
-                    mediaToAdd.push(`${mmahConfg.stillSvgsDir}/${char.charCodeAt()}-still.svg`)
-                    await apkg.addMedia(mediaToAdd)
                 }
             }
         }

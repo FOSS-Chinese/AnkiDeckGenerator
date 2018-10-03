@@ -11,12 +11,13 @@ function sleep(ms) {
 
 class Forvo {
     constructor() {
-        this.searchBaseUrl = "https://forvo.com/word"
+        this.mainBaseUrl = "https://forvo.com"
+        this.searchRoute = "search"
+        this.wordRoute = "words"
         this.audioBaseUrl = "https://audio00.forvo.com/audios/mp3"
     }
-    async getAudioUrls(hanzi, dialect='zh', type='mp3') {
-        hanzi = hanzi.replace(/\s/g,'')
-        const html = await rp(`${this.searchBaseUrl}/${encodeURIComponent(hanzi)}/`)
+    async getAudioUrlsByWord(hanzi, dialect='zh', type='mp3') {
+        const html = await rp(`${this.mainBaseUrl}/${this.wordRoute}/${encodeURIComponent(hanzi)}/`)
         const $ = cheerio.load(html)
         const em = $(`#${dialect}`)
         const article = $(em).closest('article')
@@ -34,6 +35,33 @@ class Forvo {
             urls.push({url,name})
         })
         return urls
+    }
+    async getAudioUrlsByPhrase(hanzi, dialect='zh', type='mp3') {
+        const html = await rp(`${this.mainBaseUrl}/${this.searchRoute}/${encodeURIComponent(hanzi)}/`)
+        const $ = cheerio.load(html)
+        const elements = []
+        $('.play').each((i,el)=>{
+            elements.push($(el))
+        })
+        elements.filter(el=>{
+            return el.attr('title').replace(/[，？！。；,\?\!\.\;\s]/g,'') === `Listen ${hanzi.replace(/[，？！。；,\?\!\.\;\s]/g,'')} pronunciation`
+        })
+        const urls = []
+        elements.forEach((el,i)=>{
+            const name = `_${hanzi} - by Forvo (${i}).${type}`
+            const onclickCode = el.attr('onclick')
+            const encodedUrlCmp = onclickCode.match(/,'([^']+)'/g)[0]
+            const decodedUrlCmp = new Buffer(encodedUrlCmp, 'base64').toString('utf8')
+            const url = `${this.audioBaseUrl}/${decodedUrlCmp}`
+            urls.push({url,name})
+        })
+        return urls
+    }
+    async getAudioUrls(hanzi, dialect='zh', type='mp3') {
+        if (hanzi.includes(' '))
+            return this.getAudioUrlsByPhrase(hanzi, dialect, type)
+        else
+            return this.getAudioUrlsByWord(hanzi, dialect, type)
     }
     async downloadAudio(targetDir, hanzi, dialect='zh', type='mp3', overwrite=false, maxDls=2, sleepBetweenDls=5000) {
         let existingFiles = await fs.readdir(`${targetDir}`)
