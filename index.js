@@ -51,6 +51,8 @@ async function autoGenerate(apkgFile, cmd) {
     cmd.deckName = cmd.deckName || "NewDeck"
     cmd.deckDescription = cmd.deckDescription || "A new deck"
     cmd.libs = cmd.libs || "./libs"
+
+    forvo.init()
     const apkg = new AnkiPackage(cmd.deckName, cmd.tempFolder)
 
     let mmahConfg = {}
@@ -186,6 +188,16 @@ async function autoGenerate(apkgFile, cmd) {
             const content = field.html || `{{${field.name}}}`
             collapsablePanels += generateCollapsablePanel(field.displayName, content, !!field.center, i===0)
         }
+        collapsablePanels += generateCollapsablePanel("Debug", `
+            <div class="form-group">
+                <textarea class="form-control rounded-0" id="debug-input" rows="5">jQuery.fn.jquery</textarea>
+            </div>
+            <button onclick="document.getElementById('debug-output').innerHTML = eval(document.getElementById('debug-input').value)" class="btn btn-primary">Execute</button>
+            <br/>
+            <div class="form-group">
+                <textarea readonly class="form-control rounded-0" id="debug-output" rows="5"></textarea>
+            </div>
+        `, false, false)
         const afmtTpl = await fs.readFile('afmt.mustache.html','utf8')
         const afmtTplView = {
             collapsablePanels: collapsablePanels,
@@ -315,9 +327,8 @@ async function autoGenerate(apkgFile, cmd) {
             for (const char of line.split('')) {
                 if (char !== ' ') {
                     //chars.push(char) // TODO: add cmd option to enable this
-                    let mediaToAdd
                     try {
-                        mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',char)
+                        const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',char)
                         if (!addedMedia.audio[char]) {
                             addedMedia.audio[char] = []
                             const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())

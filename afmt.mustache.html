@@ -157,14 +157,25 @@
             alert("Lib loading failed!");
         }
 
-        function loadLibs(files, success_cb, fail_cb, timeout) {
+        function isBootstrapLoaded() {
+            return typeof $ == 'function' && typeof $().modal == 'function'
+        }
+
+        function loadLibs(files, success_cb, fail_cb, timeout, check, retries) {
             var timer = setTimeout(fail_cb || function(){alert("loadLibs failed!");}, timeout || 5000);
             var loadCount = 0;
             function onLibLoaded() {
                 loadCount++;
                 if (loadCount === files.length) {
                     clearTimeout(timer);
-                    success_cb();
+                    if (!check) {
+                        success_cb();
+                    } else if (check()) {
+                        success_cb();
+                    } else if (retries > 0) {
+                        retries--;
+                        loadLibs(files, success_cb, fail_cb, timeout, check, retries);
+                    }
                 }
             }
             files.forEach(function(file){
@@ -188,10 +199,10 @@
                 }
             })
         }
-        loadLibs(['_jquery-3.js','_bootstrap-3.js','_audio-{{baseDeckId}}.jsonp'], onLibsLoaded, onLibsFailed, 1000);
+        loadLibs(['_jquery-3.js','_bootstrap-3.js','_audio-{{baseDeckId}}.jsonp'], onLibsLoaded, onLibsFailed, 1000, isBootstrapLoaded, 5);
         loadLibs(['_bootstrap-3.css','_bootstrap-3-theme.css'], function(){}, function(){}, 1000);
     } catch(err) {
-        document.body.innerHTML = err;
+        document.getElementById('debug-output').innerHTML = err;
     }
 </script>
 
