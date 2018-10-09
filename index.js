@@ -245,8 +245,9 @@ async function autoGenerate(apkgFile, cmd) {
     let chars = []
     let words = []
     let sentences = []
-    for (const [i,line] of wordList.entries()) {
+    for (let [i,line] of wordList.entries()) {
         const lang = line.match(/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/) !== null ? "cn" : "en"
+        line = line.replace(/[，？！。；,\?\!\.\;]/g,'')
         let type
         if (line.includes(' '))
             type = 'sentence'
@@ -254,6 +255,7 @@ async function autoGenerate(apkgFile, cmd) {
             type = 'word'
         else
             type = "char"
+
 
         if (lang === 'cn') { // TODO get audio for components
             if (type === 'word') {
