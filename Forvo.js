@@ -24,7 +24,8 @@ class Forvo {
             this.cache = await fs.readJson(this.cacheIndex)
     }
     async getAudioUrlsByWord(hanzi, dialect='zh', type='mp3') {
-        const html = await rp(`${this.mainBaseUrl}/${this.wordRoute}/${encodeURIComponent(hanzi)}/`)
+        const cleanHanzi = hanzi.replace(/[，？！。；,\?\!\.\;\s]/g,'')
+        const html = await rp(`${this.mainBaseUrl}/${this.wordRoute}/${encodeURIComponent(cleanHanzi)}/`)
         const $ = cheerio.load(html)
         const em = $(`#${dialect}`)
         const article = $(em).closest('article')

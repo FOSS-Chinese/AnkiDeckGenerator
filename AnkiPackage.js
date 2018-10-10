@@ -5,6 +5,14 @@ const crypto = require("crypto")
 const _ = require('lodash')
 const fs = require('fs-extra')
 
+/*
+// BASIC IDEA (DOES NOT REPRESENT ACTUAL IMPLEMENTATION)
+apkg.addDeck(config)
+[modelId, templateIndexNumbers] = apkg.addModel(config, fields, templates)
+noteId = apkg.addNote(config, modelId, fields)
+cardId = apkg.addCard(config, notesId, deckId, fields, templateIndexNumber, originalDeckId) // originalDeckId is required for filtered decks
+*/
+
 class AnkiPackage {
     constructor(apkgFile, tempDir='./anki-deck-generator-temp') {
         this.tempDir = tempDir
