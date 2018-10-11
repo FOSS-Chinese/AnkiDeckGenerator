@@ -250,6 +250,10 @@
         function onLoadDict(dictionary) {
             dict = dictionary;
         }
+        function onLoadBigDict(dictionary) {
+            onLoadDict = function(){};
+            dict = dictionary;
+        }
         function onLibsLoaded() {
             //alert("Lib loading succeeded!");
             /*$(".p#base-container anel-body").each(function(){
@@ -319,6 +323,7 @@
         }
         loadLibs(['_jquery-3.js','_bootstrap-3.js','_dict-{{baseDeckId}}.jsonp'], onLibsLoaded, onLibsFailed, 1000, isBootstrapLoaded, 5);
         loadLibs(['_bootstrap-3.css','_bootstrap-3-theme.css'], function(){}, function(){}, 1000);
+        loadLibs(['_big-dict-{{baseDeckId}}.jsonp'], function(){}, function(){}, 1000, undefined, 5);
     } catch(err) {
         document.getElementById('debug-output').innerHTML = err;
     }

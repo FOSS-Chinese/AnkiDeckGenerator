@@ -73,8 +73,8 @@ class Forvo {
         else
             return this.getAudioUrlsByWord(hanzi, dialect, type)
     }
-    async downloadAudio(targetDir, hanzi, dialect='zh', type='mp3', overwrite=false, maxDls=2, sleepBetweenDls=5000) {
-        if (this.cache[hanzi]) {
+    async downloadAudio(targetDir, hanzi, dialect='zh', type='mp3', overwrite=false, maxDls=2, sleepBetweenDls=3000) {
+        if (typeof this.cache[hanzi] !== 'undefined') {
             return this.cache[hanzi].map(item=>`${targetDir}/${item}`)
         }
         /*
@@ -86,7 +86,17 @@ class Forvo {
         if (existingFiles.length > 0)
             return existingFiles //.map(file=>file.split(/(\\|\/)/g).pop())
         */
-        const urls = await this.getAudioUrls(hanzi,dialect,type)
+        console.log(hanzi)
+        let urls = []
+        try {
+            urls = await this.getAudioUrls(hanzi,dialect,type)
+        } catch(e) {
+            if (e.statusCode === 404)
+                console.warn(`No Forvo result for "${hanzi}" (returned a 404 Not Found).`)
+            else
+                throw e
+        }
+        console.log(urls)
         const fullFilenames = []
         const filenames = []
         for (const [i,urlObj] of urls.entries()) {
@@ -99,12 +109,20 @@ class Forvo {
                 fullFilenames.push(targetFile)
                 continue
             }
-            await download(urlObj.url, targetDir, {filename})
+            try {
+                await download(urlObj.url, targetDir, {filename})
+                filenames.push(filename)
+                fullFilenames.push(targetFile)
+            } catch(e) {
+                if (e.statusCode === 404)
+                    console.warn(`A Forvo audio download for "${hanzi}" returned a 404 Not Found.`)
+                else
+                    throw e
+            }
             sleep(sleepBetweenDls)
-            filenames.push(filename)
-            fullFilenames.push(targetFile)
         }
         this.cache[hanzi] = filenames
+        fs.outputJson(this.cacheIndex, this.cache)
 
         return fullFilenames
     }

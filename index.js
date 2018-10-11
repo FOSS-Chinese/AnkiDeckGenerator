@@ -36,6 +36,7 @@ program
     .option('-p, --dictionary-priority-list [comma-separated-string]', 'List of dictionaries (offline and online) to gather data from. (highest priority first. Default: makemeahanzi,forvo,archchinese,mdbg)')
     .action((apkgFile, cmd) => {
         autoGenerate(apkgFile, cmd).then(console.log).catch(err=>{
+            console.log("aaaaaaaaaaaaa")
             fs.outputJson(archchineseCacheFile,archChineseCache).then(()=>{}).catch(e=>console.error)
             console.error(err)
         })
@@ -253,7 +254,8 @@ async function autoGenerate(apkgFile, cmd) {
         }
         allChars = chars.concat(extractedChars)
     }
-    vocDataObj = await mmah.getCharData(allChars,'char',true)
+    //vocDataObj = await mmah.getCharData(allChars,'char',true)
+    vocDataObj = await mmah.getCharData(allChars)
 
     for (const [char,charData] of Object.entries(vocDataObj)) {
         charData.traditional = await opencc.convertPromise(char)
@@ -269,20 +271,23 @@ async function autoGenerate(apkgFile, cmd) {
         cardWords = words.concat(extractedWords)
     }
     for (const [i,sentence] of sentences.entries()) {
-        if (!archChineseCache[sentence]) {
-            const results = await archChinese.searchSentences(sentence)
-            if (results.length < 1) {
-                console.warn(`Skipping "${sentence}" as no result was found on ArchChinese.`)
-                continue
-            }
-            const filteredResults = results.filter(r=>r.simplified.replace(/\s/g,'')===sentence.replace(/\s/g,'')||r.traditional.replace(/\s/g,'')===sentence.replace(/\s/g,''))
-            if (filteredResults.length < 1) {
-                console.warn(`Skipping "${sentence}" as no match was found on ArchChinese.`)
-                continue
-            }
-            archChineseCache[sentence] = filteredResults[0]
+        let results = []
+        if (typeof archChineseCache[sentence] === 'undefined') {
+            results = await archChinese.searchSentences(sentence)
+        } else {
+            results = archChineseCache[sentence]
         }
-        const result = archChineseCache[sentence]
+        if (results.length < 1) {
+            console.warn(`Skipping "${sentence}" as no result was found on ArchChinese.`)
+            continue
+        }
+        const filteredResults = results.filter(r=>r.simplified.replace(/\s/g,'')===sentence.replace(/\s/g,'')||r.traditional.replace(/\s/g,'')===sentence.replace(/\s/g,''))
+        if (filteredResults.length < 1) {
+            console.warn(`Skipping "${sentence}" as no match was found on ArchChinese.`)
+            continue
+        }
+        archChineseCache[sentence] = filteredResults
+        const result = archChineseCache[sentence][0]
 
         let fieldContentArr = []
         fieldContentArr.push(sentence)
@@ -299,20 +304,23 @@ async function autoGenerate(apkgFile, cmd) {
         notes.push(note)
     }
     for (const [i,word] of cardWords.entries()) {
-        if (!archChineseCache[word]) {
-            const results = await archChinese.searchWords(word)
-            if (!results || results.length < 1) {
-                console.warn(`Skipping word "${word}" as no result was found on ArchChinese.`)
-                continue
-            }
-            const filteredResults = results.filter(r=>r.simplified===word||r.traditional===word)
-            if (filteredResults.length < 1) {
-                console.warn(`Skipping word "${word}" as no match was found on ArchChinese.`)
-                continue
-            }
-            archChineseCache[word] = filteredResults[0]
+        let results = []
+        if (typeof archChineseCache[word] === 'undefined') {
+            results = await archChinese.searchWords(word)
+        } else {
+            results = archChineseCache[word]
         }
-        const result = archChineseCache[word]
+        if (!results || results.length < 1) {
+            console.warn(`Skipping word "${word}" as no result was found on ArchChinese.`)
+            continue
+        }
+        const filteredResults = results.filter(r=>r.simplified===word||r.traditional===word)
+        if (filteredResults.length < 1) {
+            console.warn(`Skipping word "${word}" as no match was found on ArchChinese.`)
+            continue
+        }
+        archChineseCache[word] = filteredResults
+        const result = archChineseCache[word][0]
 
         let fieldContentArr = []
         fieldContentArr.push(word)
@@ -372,6 +380,8 @@ async function autoGenerate(apkgFile, cmd) {
         try {
             const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',sentence)
             await apkg.addMedia(mediaToAdd)
+            if (!vocDataObj[sentence])
+                vocDataObj[sentence] = {}
             vocDataObj[sentence].audio = []
             const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
             for (const [i,filename] of filenames.entries()) {
@@ -379,9 +389,9 @@ async function autoGenerate(apkgFile, cmd) {
             }
         } catch(e) {
             if (e.statusCode === 403)
-                console.warn(`Forvo blocked download of audio for sentence "${line}". Try again later.`)
+                console.warn(`Forvo blocked download of audio for sentence "${sentence}". Try again later.`)
             else if (e.statusCode === 404)
-                console.warn(`Forvo audio download for sentence "${line}" returned a 404 Not Found.`)
+                console.warn(`Forvo audio download for sentence "${sentence}" returned a 404 Not Found.`)
             else
                 throw e
         }
@@ -399,9 +409,9 @@ async function autoGenerate(apkgFile, cmd) {
             }
         } catch(e) {
             if (e.statusCode === 403)
-                console.warn(`Forvo blocked download of audio for word "${line}". Try again later.`)
+                console.warn(`Forvo blocked download of audio for word "${word}". Try again later.`)
             else if (e.statusCode === 404)
-                console.warn(`Forvo audio download for word "${line}" returned a 404 Not Found.`)
+                console.warn(`Forvo audio download for word "${word}" returned a 404 Not Found.`)
             else
                 throw e
         }
@@ -415,7 +425,6 @@ async function autoGenerate(apkgFile, cmd) {
             for (const [i,filename] of filenames.entries()) {
                 vocDataObj[char].audio.push(filename)
             }
-            mediaToAdd.push(`${mmahConfg.stillSvgsDir}/${char.charCodeAt()}-still.svg`)
             await apkg.addMedia(mediaToAdd)
         } catch(e) {
             if (e.statusCode === 403)
@@ -426,8 +435,23 @@ async function autoGenerate(apkgFile, cmd) {
                 throw e
         }
     }
+
+    // Add base dict
     await fs.outputFile(`${cmd.tempFolder}/_dict-${baseDeck.baseConf.id}.jsonp`,`onLoadDict(${JSON.stringify(vocDataObj)})`)
     await apkg.addMedia(`${cmd.tempFolder}/_dict-${baseDeck.baseConf.id}.jsonp`)
+    await fs.remove(`${cmd.tempFolder}/_dict-${baseDeck.baseConf.id}.jsonp`)
+
+    // Add all stroke order diagrams
+    vocDataObj = await mmah.getCharData(allChars,'char',true)
+    const mediaToAdd = []
+    for (const [char,charData] of Object.entries(vocDataObj)) {
+        mediaToAdd.push(`${mmahConfg.stillSvgsDir}/${char.charCodeAt()}-still.svg`)
+    }
+    // Add complete dict
+    await apkg.addMedia(mediaToAdd)
+    await fs.outputFile(`${cmd.tempFolder}/_big-dict-${baseDeck.baseConf.id}.jsonp`,`onLoadBigDict(${JSON.stringify(vocDataObj)})`)
+    await apkg.addMedia(`${cmd.tempFolder}/_big-dict-${baseDeck.baseConf.id}.jsonp`)
+
     await fs.remove(`${cmd.tempFolder}/_dict-${baseDeck.baseConf.id}.jsonp`)
 
     const files = await fs.readdir(cmd.tempFolder)
@@ -436,7 +460,8 @@ async function autoGenerate(apkgFile, cmd) {
     for (const filepath of filepathArr) {
         apkgArchive.file(filepath, fs.createReadStream(filepath))
     }
-    const content = await apkgArchive.folder(cmd.tempFolder).generateAsync({type:"uint8array"})
+
+    const content = await apkgArchive.folder(cmd.tempFolder).generateAsync({type:"uint8array"},console.log)
     await fs.writeFile(apkgFile, content)
     await fs.remove(cmd.tempFolder)
     return "Done!"
