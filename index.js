@@ -507,11 +507,11 @@ async function autoGenerate(apkgFile, cmd) {
     let i = 0
     for (const [char,charData] of Object.entries(charDataObj)) {
         mediaToAdd.push(`${mmahConfg.stillSvgsDir}/${char.charCodeAt()}-still.svg`)
-        /*i++
+        i++
         if (i > 3000) {
-            console.warn(`Stroke order diagram files have been cut off at file #${i+1}.`)
+            console.warn(`Stroke order diagram files have been cut off at diagram file #${i+1}.`)
             break
-        }*/
+        }
     }
     // Add complete dict
     await apkg.addMedia(mediaToAdd)
@@ -527,17 +527,17 @@ async function autoGenerate(apkgFile, cmd) {
         apkgArchive.file(filepath, fs.createReadStream(filepath))
     }
     console.log("Archiving apkg...")
-    //const progressBar = new cliProgress.Bar({}, cliProgress.Presets.shades_classic);
-    //progressBar.start(100,0)
-    //let lastPercent = -1
+    const progressBar = new cliProgress.Bar({}, cliProgress.Presets.shades_classic);
+    progressBar.start(100,0)
+    let lastPercent = -1
     const content = await apkgArchive.folder(cmd.tempFolder).generateAsync({type:"uint8array"},data=>{
-        //if (data.percent !== lastPercent) {
-            //lastPercent = data.percent
-            //progressBar.update(data.percent)
+        if (data.percent !== lastPercent) {
+            lastPercent = data.percent
+            progressBar.update(data.percent)
             // data.currentFile
-        //}
+        }
     })
-    //progressBar.stop()
+    progressBar.stop()
     await fs.writeFile(apkgFile, content)
     await fs.remove(cmd.tempFolder)
     await fs.outputJson(archchineseCacheFile,archChineseCache)
