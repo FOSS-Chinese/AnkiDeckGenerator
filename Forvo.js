@@ -86,7 +86,6 @@ class Forvo {
         if (existingFiles.length > 0)
             return existingFiles //.map(file=>file.split(/(\\|\/)/g).pop())
         */
-        console.log(hanzi)
         let urls = []
         try {
             urls = await this.getAudioUrls(hanzi,dialect,type)
@@ -96,7 +95,6 @@ class Forvo {
             else
                 throw e
         }
-        console.log(urls)
         const fullFilenames = []
         const filenames = []
         for (const [i,urlObj] of urls.entries()) {

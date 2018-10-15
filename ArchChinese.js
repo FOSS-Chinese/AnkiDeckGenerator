@@ -62,7 +62,7 @@ class ArchChinese {
             finalResults[i] = {
                 simplified: result[0],
                 traditional: result[1],
-                pinyin: pinyinUtils.numberToMark(result[2]),
+                pinyin: result[2].split(' ').map(pinyin=>pinyinUtils.numberToMark(pinyin)).join(' '),
                 english: result[3].includes(';') ? result[3].split(';') : result[3].split(','),
                 //unknownInt1: result[4],
                 //wordType: result[5], // sometimes missing
@@ -110,7 +110,7 @@ class ArchChinese {
                 return {
                     simplified: item[0],
                     traditional: item[1],
-                    pinyin: item[2].split(/,\s|,/).map(p=>pinyinUtils.numberToMark(p)),
+                    pinyin: item[2].split(/,\s|,/).map(p=>p.split(' ').map(pinyin=>pinyinUtils.numberToMark(pinyin)).join(' ')),
                     english: item[3].includes(';') ? item[3].split(';') : item[3].split(',')
                 }
             })
