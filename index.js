@@ -6,19 +6,22 @@ const fs = require('fs-extra')
 const JSZip = require("jszip")
 const mustache = require('mustache')
 const OpenCC = require('opencc')
+const cliProgress = require('cli-progress')
 
-global.Promise = require("bluebird")
+global.Promise = require('bluebird')
 Promise.longStackTraces()
 
 const packageInfo = require('./package.json')
 const AnkiPackage = require('./AnkiPackage')
 const MakeMeAHanzi = require('./MakeMeAHanzi')
-const Forvo = require("./Forvo")
-const ArchChinese = require("./ArchChinese")
+const Forvo = require('./Forvo')
+const ArchChinese = require('./ArchChinese')
+const Mdbg = require('./Mdbg')
 
 
 const opencc = new OpenCC('s2t.json')
 const forvo = new Forvo()
+const mdbg = new Mdbg()
 const archChinese = new ArchChinese()
 let archChineseCache = {}
 let archchineseCacheFile = './archchinese-cache.json'
@@ -36,7 +39,6 @@ program
     .option('-p, --dictionary-priority-list [comma-separated-string]', 'List of dictionaries (offline and online) to gather data from. (highest priority first. Default: makemeahanzi,forvo,archchinese,mdbg)')
     .action((apkgFile, cmd) => {
         autoGenerate(apkgFile, cmd).then(console.log).catch(err=>{
-            console.log("aaaaaaaaaaaaa")
             fs.outputJson(archchineseCacheFile,archChineseCache).then(()=>{}).catch(e=>console.error)
             console.error(err)
         })
@@ -47,7 +49,7 @@ async function autoGenerate(apkgFile, cmd) {
     cmd.tempFolder = cmd.tempFolder || './anki-deck-generator-temp'
     cmd.deckName = cmd.deckName || "NewDeck"
     cmd.deckDescription = cmd.deckDescription || "A new deck"
-    cmd.libs = cmd.libs || "./libs"
+    cmd.libs = cmd.libs || './libs'
 
     //cmd.recursiveDict = cmd.recursiveDict===true ? true : false
     //cmd.recursiveCards = cmd.recursiveCards===true ? true : false
@@ -56,6 +58,7 @@ async function autoGenerate(apkgFile, cmd) {
     cmd.recursiveCards = false
 
     forvo.init()
+    mdbg.init()
     const apkg = new AnkiPackage(cmd.deckName, cmd.tempFolder)
 
     let mmahConfg = {}
@@ -213,11 +216,12 @@ async function autoGenerate(apkgFile, cmd) {
     }
 
     //////////// Extract words, chars and components from input
-    let vocDataObj
+    let charDataObj
     let allChars = chars
     let extractedChars = []
     let extractedWords = []
     if (cmd.recursiveDict) {
+        console.log('Dissecting input data...')
         for (const [i,sentence] of sentences.entries()) {
             for (let [j,word] of sentence.split(' ').entries()) {
                 word = word.replace(/[，？！。；,\?\!\.\;]/g,'')
@@ -254,12 +258,15 @@ async function autoGenerate(apkgFile, cmd) {
         }
         allChars = chars.concat(extractedChars)
     }
-    //vocDataObj = await mmah.getCharData(allChars,'char',true)
-    vocDataObj = await mmah.getCharData(allChars)
+    //charDataObj = await mmah.getCharData(allChars,'char',true)
+    charDataObj = await mmah.getCharData(allChars)
 
-    for (const [char,charData] of Object.entries(vocDataObj)) {
-        charData.traditional = await opencc.convertPromise(char)
+    for (const [char,charData] of Object.entries(charDataObj)) {
+        charDataObj[char].traditional = await opencc.convertPromise(char)
     }
+
+    console.log('Getting word data from mdbg...')
+    let wordDataObj = await mdbg.getEntryByHanzi(words.concat(extractedWords))
 
     /////////// Create notes+cards
     const notes = []
@@ -311,7 +318,9 @@ async function autoGenerate(apkgFile, cmd) {
         const note = await apkg.addNote(noteToAdd)
         notes.push(note)
     }
+
     for (const [i,word] of cardWords.entries()) {
+        /*
         let results = []
         try {
             if (typeof archChineseCache[word] === 'undefined') {
@@ -337,7 +346,11 @@ async function autoGenerate(apkgFile, cmd) {
         }
         archChineseCache[word] = filteredResults
         const result = archChineseCache[word][0]
+        */
 
+        const result = wordDataObj[word]
+        if (!result)
+            continue
         let fieldContentArr = []
         fieldContentArr.push(word)
         fieldContentArr.push(result.pinyin)
@@ -353,7 +366,8 @@ async function autoGenerate(apkgFile, cmd) {
         notes.push(note)
     }
     for (const [i,char] of cardChars.entries()) {
-        let itemData = vocDataObj[char]
+
+        let itemData = charDataObj[char]
         let fieldContentArr = []
         fieldContentArr.push(char || '')
         fieldContentArr.push(itemData.pinyin ? itemData.pinyin.join(' / ') : '')
@@ -396,12 +410,12 @@ async function autoGenerate(apkgFile, cmd) {
         try {
             const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',sentence)
             await apkg.addMedia(mediaToAdd)
-            if (!vocDataObj[sentence])
-                vocDataObj[sentence] = {}
-            vocDataObj[sentence].audio = []
+            if (!charDataObj[sentence])
+                charDataObj[sentence] = {}
+            charDataObj[sentence].audio = []
             const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
             for (const [i,filename] of filenames.entries()) {
-                vocDataObj[sentence].audio.push(filename)
+                charDataObj[sentence].audio.push(filename)
             }
         } catch(e) {
             if (e.statusCode === 403)
@@ -418,12 +432,12 @@ async function autoGenerate(apkgFile, cmd) {
         try {
             const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',word)
             await apkg.addMedia(mediaToAdd)
-            if (!vocDataObj[word])
-                vocDataObj[word] = {}
-            vocDataObj[word].audio = []
+            if (!charDataObj[word])
+                charDataObj[word] = {}
+            charDataObj[word].audio = []
             const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
             for (const [i,filename] of filenames.entries()) {
-                vocDataObj[word].audio.push(filename)
+                charDataObj[word].audio.push(filename)
             }
         } catch(e) {
             if (e.statusCode === 403)
@@ -440,10 +454,10 @@ async function autoGenerate(apkgFile, cmd) {
     for (const [i,char] of dictChars.entries()) {
         try {
             const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',char)
-            vocDataObj[char].audio = []
+            charDataObj[char].audio = []
             const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
             for (const [i,filename] of filenames.entries()) {
-                vocDataObj[char].audio.push(filename)
+                charDataObj[char].audio.push(filename)
             }
             await apkg.addMedia(mediaToAdd)
         } catch(e) {
@@ -459,12 +473,16 @@ async function autoGenerate(apkgFile, cmd) {
     }
 
     // Add base dict
-    await fs.outputFile(`${cmd.tempFolder}/_dict-${baseDeck.baseConf.id}.jsonp`,`onLoadDict(${JSON.stringify(vocDataObj)})`)
+    await fs.outputFile(`${cmd.tempFolder}/_dict-${baseDeck.baseConf.id}.jsonp`,`onLoadDict(${JSON.stringify(charDataObj)})`)
     await apkg.addMedia(`${cmd.tempFolder}/_dict-${baseDeck.baseConf.id}.jsonp`)
     await fs.remove(`${cmd.tempFolder}/_dict-${baseDeck.baseConf.id}.jsonp`)
 
     // Add all stroke order diagrams
-    vocDataObj = await mmah.getCharData(allChars,'char',true)
+    console.log("Generating big char dict...")
+    charDataObj = await mmah.getCharData(allChars,'char',true)
+    for (const [char,charData] of Object.entries(charDataObj)) {
+        charDataObj[char].traditional = await opencc.convertPromise(char)
+    }
     const mediaToAdd = []
     let i = 0
     for (const [char,charData] of Object.entries(vocDataObj)) {
@@ -477,7 +495,7 @@ async function autoGenerate(apkgFile, cmd) {
     }
     // Add complete dict
     await apkg.addMedia(mediaToAdd)
-    await fs.outputFile(`${cmd.tempFolder}/_big-dict-${baseDeck.baseConf.id}.jsonp`,`onLoadBigDict(${JSON.stringify(vocDataObj)})`)
+    await fs.outputFile(`${cmd.tempFolder}/_big-dict-${baseDeck.baseConf.id}.jsonp`,`onLoadBigDict(${JSON.stringify(charDataObj)})`)
     await apkg.addMedia(`${cmd.tempFolder}/_big-dict-${baseDeck.baseConf.id}.jsonp`)
 
     await fs.remove(`${cmd.tempFolder}/_dict-${baseDeck.baseConf.id}.jsonp`)
@@ -488,9 +506,20 @@ async function autoGenerate(apkgFile, cmd) {
     for (const filepath of filepathArr) {
         apkgArchive.file(filepath, fs.createReadStream(filepath))
     }
-
-    const content = await apkgArchive.folder(cmd.tempFolder).generateAsync({type:"uint8array"},console.log)
+    console.log("Archiving apkg...")
+    //const progressBar = new cliProgress.Bar({}, cliProgress.Presets.shades_classic);
+    //progressBar.start(100,0)
+    //let lastPercent = -1
+    const content = await apkgArchive.folder(cmd.tempFolder).generateAsync({type:"uint8array"},data=>{
+        //if (data.percent !== lastPercent) {
+            //lastPercent = data.percent
+            //progressBar.update(data.percent)
+            // data.currentFile
+        //}
+    })
+    //progressBar.stop()
     await fs.writeFile(apkgFile, content)
     await fs.remove(cmd.tempFolder)
+    await fs.outputJson(archchineseCacheFile,archChineseCache)
     return "Done!"
 }
