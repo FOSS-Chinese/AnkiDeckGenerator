@@ -99,7 +99,7 @@ async function autoGenerate(apkgFile, cmd) {
     if (await fs.pathExists(archchineseCacheFile))
         archChineseCache = await fs.readJson(archchineseCacheFile)
 
-    const chineseInputFile = await fs.readFile(cmd.inputFileChinese,'utf8')
+    const chineseInputFile = await fs.readFile(cmd.inputFileChinese,'utf8') //TODO: rename chineseInput to general input or so...
     const input = chineseInputFile.split(/\r?\n/)
     const apkgCfg = await apkg.init()
     const baseDeck = await apkg.addDeck({
