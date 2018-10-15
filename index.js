@@ -100,7 +100,7 @@ async function autoGenerate(apkgFile, cmd) {
         archChineseCache = await fs.readJson(archchineseCacheFile)
 
     const chineseInputFile = await fs.readFile(cmd.inputFileChinese,'utf8')
-    const wordList = chineseInputFile.split(/\r?\n/)
+    const input = chineseInputFile.split(/\r?\n/)
     const apkgCfg = await apkg.init()
     const baseDeck = await apkg.addDeck({
         name: cmd.deckName,
@@ -194,7 +194,21 @@ async function autoGenerate(apkgFile, cmd) {
     const chars = []
     const words = []
     const sentences = []
-    for (const [i,line] of wordList.entries()) {
+    const inputConfig = {
+        version: 1,
+        format: 'simplified|traditional|pinyin|english'
+    }
+    for (const [i,line] of input.entries()) {
+        if (line.startsWith('#')) {
+            if (line.includes(':')) {
+                const cfgArr = line.split(':')
+                if (cfgArr.length >= 2)
+                    inputConfig[cfgArr[0]] = cfgArr[1]
+            }
+            continue
+        } else if (!line || !line.replace(/\s/g,'')) {
+            continue
+        }
         const lang = line.match(/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/) !== null ? 'cn' : 'en'
         let type
         if (/[，？！。；,\?\!\.\;\s]/.test(line))
@@ -221,7 +235,7 @@ async function autoGenerate(apkgFile, cmd) {
     let extractedChars = []
     let extractedWords = []
     if (cmd.recursiveDict) {
-        console.log('Dissecting input data down to the component level...')
+        console.log('Dissecting input data down to component level...')
         for (const [i,sentence] of sentences.entries()) {
             for (let [j,word] of sentence.split(' ').entries()) {
                 word = word.replace(/[，？！。；,\?\!\.\;]/g,'')
