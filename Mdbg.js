@@ -14,7 +14,7 @@ class Mdbg {
         this.downloadUrl = `https://www.mdbg.net/chinese/export/cedict/${this.zipName}`
         this.dictName = 'cedict_ts.u8'
         //this.daysBetweenUpdates = daysBetweenUpdates
-        this.lineRegex = /(?<simplified>[^\s]+)\s(?<traditional>[^\s]+)\s\[(?<pinyin>[^\]]+)\]\s\/(?<english>.+)\//u
+        this.lineRegex = /(?<traditional>[^\s]+)\s(?<simplified>[^\s]+)\s\[(?<pinyin>[^\]]+)\]\s\/(?<english>.+)\//u
     }
     async init() {
         if (await fs.pathExists(this.dictPath)) {

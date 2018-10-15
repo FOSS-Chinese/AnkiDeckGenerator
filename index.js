@@ -197,7 +197,7 @@ async function autoGenerate(apkgFile, cmd) {
     for (const [i,line] of wordList.entries()) {
         const lang = line.match(/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/) !== null ? 'cn' : 'en'
         let type
-        if (line.includes(' ') || /[]+/.test(line))
+        if (/[，？！。；,\?\!\.\;\s]/.test(line))
             type = 'sentence'
         else if (line.length > 1)
             type = 'word'
@@ -221,7 +221,7 @@ async function autoGenerate(apkgFile, cmd) {
     let extractedChars = []
     let extractedWords = []
     if (cmd.recursiveDict) {
-        console.log('Dissecting input data...')
+        console.log('Dissecting input data down to the component level...')
         for (const [i,sentence] of sentences.entries()) {
             for (let [j,word] of sentence.split(' ').entries()) {
                 word = word.replace(/[，？！。；,\?\!\.\;]/g,'')
@@ -320,37 +320,44 @@ async function autoGenerate(apkgFile, cmd) {
     }
 
     for (const [i,word] of cardWords.entries()) {
-        /*
-        let results = []
-        try {
-            if (typeof archChineseCache[word] === 'undefined') {
-                results = await archChinese.searchWords(word)
-            } else {
-                results = archChineseCache[word]
-            }
-            if (!results || results.length < 1) {
-                console.warn(`Skipping word "${word}" as no result was found on ArchChinese.`)
+        let result = wordDataObj[word]
+        if (!result) {
+            let results = []
+            try {
+                if (typeof archChineseCache[word] === 'undefined') {
+                    results = await archChinese.searchWords(word)
+                } else {
+                    results = archChineseCache[word]
+                }
+                //if (!results || results.length < 1) {
+                //    console.warn(`Skipping word "${word}" as no result was found on ArchChinese.`)
+                //    continue
+                //}
+            } catch(e) {
+                if (e.error.syscall === 'getaddrinfo' && e.error.code === 'ENOTFOUND')
+                    console.warn(`DNS request failed. ArchChinese search for sentence "${word}" skipped.`)
+                else
+                    throw e
                 continue
             }
-        } catch(e) {
-            if (e.error.syscall === 'getaddrinfo' && e.error.code === 'ENOTFOUND')
-                console.warn(`DNS request failed. ArchChinese search for sentence "${word}" skipped.`)
-            else
-                throw e
-            continue
-        }
-        const filteredResults = results.filter(r=>r.simplified===word||r.traditional===word)
-        if (filteredResults.length < 1) {
-            console.warn(`Skipping word "${word}" as no match was found on ArchChinese.`)
-            continue
-        }
-        archChineseCache[word] = filteredResults
-        const result = archChineseCache[word][0]
-        */
+            if (!results || results.length < 1) {
 
-        const result = wordDataObj[word]
-        if (!result)
+            } else {
+                const filteredResults = results.filter(r=>r.simplified===word||r.traditional===word)
+                if (filteredResults.length < 1) {
+                    //console.warn(`Skipping word "${word}" as no match was found on ArchChinese.`)
+                    //continue
+                } else {
+                    archChineseCache[word] = filteredResults
+                    result = archChineseCache[word][0]
+                }
+            }
+        }
+
+        if (!result) {
+            console.warn(`No entry for word ${word} found on mdbg and ArchChinese.`)
             continue
+        }
         let fieldContentArr = []
         fieldContentArr.push(word)
         fieldContentArr.push(result.pinyin)
@@ -366,7 +373,6 @@ async function autoGenerate(apkgFile, cmd) {
         notes.push(note)
     }
     for (const [i,char] of cardChars.entries()) {
-
         let itemData = charDataObj[char]
         let fieldContentArr = []
         fieldContentArr.push(char || '')
@@ -485,13 +491,13 @@ async function autoGenerate(apkgFile, cmd) {
     }
     const mediaToAdd = []
     let i = 0
-    for (const [char,charData] of Object.entries(vocDataObj)) {
+    for (const [char,charData] of Object.entries(charDataObj)) {
         mediaToAdd.push(`${mmahConfg.stillSvgsDir}/${char.charCodeAt()}-still.svg`)
-        i++
+        /*i++
         if (i > 3000) {
             console.warn(`Stroke order diagram files have been cut off at file #${i+1}.`)
             break
-        }
+        }*/
     }
     // Add complete dict
     await apkg.addMedia(mediaToAdd)

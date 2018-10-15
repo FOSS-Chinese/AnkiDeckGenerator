@@ -3,3 +3,7 @@ package-lock.json
 
 *.apkg
 anki-audio-dl-cache
+
+anki-deck-generator-temp
+archchinese-cache.json
+cedict_ts.u8

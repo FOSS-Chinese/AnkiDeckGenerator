@@ -1,3 +1,5 @@
+#version: 1
+#format: simplified|traditional|pinyin|english
 对不起
 英文
 会
@@ -65,7 +67,6 @@
 学院 路 在 哪儿？
 在 哪人？
 長 安 街 在 哪人？
-在这儿
 我 不 明白 说 什么。
 是 在 这人 吗？
 不 是 在 这人 吗。
