@@ -272,13 +272,21 @@ async function autoGenerate(apkgFile, cmd) {
     }
     for (const [i,sentence] of sentences.entries()) {
         let results = []
-        if (typeof archChineseCache[sentence] === 'undefined') {
-            results = await archChinese.searchSentences(sentence)
-        } else {
-            results = archChineseCache[sentence]
-        }
-        if (results.length < 1) {
-            console.warn(`Skipping "${sentence}" as no result was found on ArchChinese.`)
+        try {
+            if (typeof archChineseCache[sentence] === 'undefined') {
+                results = await archChinese.searchSentences(sentence)
+            } else {
+                results = archChineseCache[sentence]
+            }
+            if (results.length < 1) {
+                console.warn(`Skipping "${sentence}" as no result was found on ArchChinese.`)
+                continue
+            }
+        } catch(e) {
+            if (e.error.syscall === 'getaddrinfo' && e.error.code === 'ENOTFOUND')
+                console.warn(`DNS request failed. ArchChinese search for sentence "${sentence}" skipped.`)
+            else
+                throw e
             continue
         }
         const filteredResults = results.filter(r=>r.simplified.replace(/\s/g,'')===sentence.replace(/\s/g,'')||r.traditional.replace(/\s/g,'')===sentence.replace(/\s/g,''))
@@ -305,13 +313,21 @@ async function autoGenerate(apkgFile, cmd) {
     }
     for (const [i,word] of cardWords.entries()) {
         let results = []
-        if (typeof archChineseCache[word] === 'undefined') {
-            results = await archChinese.searchWords(word)
-        } else {
-            results = archChineseCache[word]
-        }
-        if (!results || results.length < 1) {
-            console.warn(`Skipping word "${word}" as no result was found on ArchChinese.`)
+        try {
+            if (typeof archChineseCache[word] === 'undefined') {
+                results = await archChinese.searchWords(word)
+            } else {
+                results = archChineseCache[word]
+            }
+            if (!results || results.length < 1) {
+                console.warn(`Skipping word "${word}" as no result was found on ArchChinese.`)
+                continue
+            }
+        } catch(e) {
+            if (e.error.syscall === 'getaddrinfo' && e.error.code === 'ENOTFOUND')
+                console.warn(`DNS request failed. ArchChinese search for sentence "${word}" skipped.`)
+            else
+                throw e
             continue
         }
         const filteredResults = results.filter(r=>r.simplified===word||r.traditional===word)
@@ -392,6 +408,8 @@ async function autoGenerate(apkgFile, cmd) {
                 console.warn(`Forvo blocked download of audio for sentence "${sentence}". Try again later.`)
             else if (e.statusCode === 404)
                 console.warn(`Forvo audio download for sentence "${sentence}" returned a 404 Not Found.`)
+            else if (e.error.syscall === 'getaddrinfo' && e.error.code === 'ENOTFOUND')
+                console.warn(`DNS request failed. Forvo audio download for sentence "${sentence}" skipped.`)
             else
                 throw e
         }
@@ -412,6 +430,8 @@ async function autoGenerate(apkgFile, cmd) {
                 console.warn(`Forvo blocked download of audio for word "${word}". Try again later.`)
             else if (e.statusCode === 404)
                 console.warn(`Forvo audio download for word "${word}" returned a 404 Not Found.`)
+            else if (e.error.syscall === 'getaddrinfo' && e.error.code === 'ENOTFOUND')
+                console.warn(`DNS request failed. Forvo audio download for word "${word}" skipped.`)
             else
                 throw e
         }
@@ -431,6 +451,8 @@ async function autoGenerate(apkgFile, cmd) {
                 console.warn(`Forvo blocked download of audio for char "${char}". Try again later.`)
             else if (e.statusCode === 404)
                 console.warn(`Forvo audio download for char "${char}" returned a 404 Not Found.`)
+            else if (e.error.syscall === 'getaddrinfo' && e.error.code === 'ENOTFOUND')
+                console.warn(`DNS request failed. Forvo audio download for char "${char}" skipped.`)
             else
                 throw e
         }
@@ -444,8 +466,14 @@ async function autoGenerate(apkgFile, cmd) {
     // Add all stroke order diagrams
     vocDataObj = await mmah.getCharData(allChars,'char',true)
     const mediaToAdd = []
+    let i = 0
     for (const [char,charData] of Object.entries(vocDataObj)) {
         mediaToAdd.push(`${mmahConfg.stillSvgsDir}/${char.charCodeAt()}-still.svg`)
+        i++
+        if (i > 3000) {
+            console.warn(`Stroke order diagram files have been cut off at file #${i+1}.`)
+            break
+        }
     }
     // Add complete dict
     await apkg.addMedia(mediaToAdd)
