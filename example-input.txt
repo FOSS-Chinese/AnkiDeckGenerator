@@ -1,5 +1,7 @@
-#version: 1
-#format: simplified|traditional|pinyin|english
+#! version: 1
+#! format: simplified|traditional|pinyin|english
+#! use-online-services: true
+#! leave-blank-sequence: {BLANK}
 对不起
 英文
 会

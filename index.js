@@ -28,7 +28,7 @@ let archchineseCacheFile = './archchinese-cache.json'
 
 program
     .command('auto-generate <apkg-output-file>')
-    .option('-c, --input-file-chinese [file-path]', 'File containing a json-array of Chinese characters, words and/or sentences')
+    .option('-c, --input-file [file-path]', 'File containing a json-array of Chinese characters, words and/or sentences')
     .option('-n, --deck-name <string>', 'Name of the deck to be created')
     .option('-d, --deck-description <string>', 'Name of the deck to be created')
     .option('-t, --temp-folder [folder-path]', 'Folder to be used/created for temporary files')
@@ -99,8 +99,8 @@ async function autoGenerate(apkgFile, cmd) {
     if (await fs.pathExists(archchineseCacheFile))
         archChineseCache = await fs.readJson(archchineseCacheFile)
 
-    const chineseInputFile = await fs.readFile(cmd.inputFileChinese,'utf8') //TODO: rename chineseInput to general input or so...
-    const input = chineseInputFile.split(/\r?\n/)
+    const inputRaw = await fs.readFile(cmd.inputFile,'utf8') //TODO: rename chineseInput to general input or so...
+    const inputLines = inputRaw.split(/\r?\n/)
     const apkgCfg = await apkg.init()
     const baseDeck = await apkg.addDeck({
         name: cmd.deckName,
@@ -195,15 +195,25 @@ async function autoGenerate(apkgFile, cmd) {
     const words = []
     const sentences = []
     const inputConfig = {
-        version: 1,
-        format: 'simplified|traditional|pinyin|english'
+        "version": 1,
+        "use-online-services": true,
+        "format": 'simplified|traditional|pinyin|english',
+        "leave-blank-sequence": '{BLANK}'
     }
-    for (const [i,line] of input.entries()) {
-        if (line.startsWith('#')) {
+    for (const [i,line] of inputLines.entries()) {
+        if (line.startsWith('#!')) {
             if (line.includes(':')) {
+                const strippedLine = line.match(/^#!([^#$]+)(#|$)/)[1]
                 const cfgArr = line.split(':')
-                if (cfgArr.length >= 2)
-                    inputConfig[cfgArr[0]] = cfgArr[1]
+                if (cfgArr.length >= 2) {
+                    let key = cfgArr[0].trim().toLowerCase()
+                    let value = cfgArr[1].trim().toLowerCase()
+                    value = value === "true" ? true : value
+                    value = value === "false" ? false : value
+                    value = value === "null" ? null : value
+                    value = value === "undefined" ? undefined : value
+                    inputConfig[key] = value
+                }
             }
             continue
         } else if (!line || !line.replace(/\s/g,'')) {
