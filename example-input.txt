@@ -1,7 +1,11 @@
-#! version: 1
-#! format: simplified|traditional|pinyin|english
-#! use-online-services: true
-#! leave-blank-sequence: {BLANK}
+#! version = 1
+#! use-online-services = true # Not implemented yet
+#! leave-blank-sequence = {blank} # Not implemented yet
+#! separator = |
+#! format = simplified|traditional|pinyin|english|audio
+#! base-deck = MyDeck
+
+#! deck = Unit 1::Vocab
 对不起
 英文
 会
@@ -17,14 +21,16 @@
 人
 是
 
-你 会 说 英文 吗？
-不会。
-我 不 会 说 英文。
-我 会 说 一点儿 普通话。
-你 是 美国 人 吗？
-我 是 美国 人。
+#! deck = Unit 1::Exaple Sentences
+你 会 说 英文 吗？|你 會 說 英文 嗎?|Nî huì shuō Yīngwén ma?|Do you speak English?|{blank}
+不会。|不會。|Bú huì.|No.|{blank}
+我 不 会 说 英文。|我 不 會 說 英文。|Wô bú huì shuō Yīngwén.|I don't speak English.|{blank}
+我 会 说 一点儿 普通话。|我 會 說 一點兒 普通話。|Wô hùi shuō yìdiânr pûtōnghuà.|I can speak a little Mandarin.|{blank}
+你 是 美国 人 吗？|你 是 美國 人 嗎?|Nî shì Mêiguó rén ma?|Are you American?|{blank}
+我 是 美国 人。|我是美國人。|Wô shì Mêiguó rén.|I am American.|{blank}
 
 
+#! deck = Unit 2::Vocab
 好
 的
 你好。
@@ -33,23 +39,26 @@
 很
 再见
 
-我 会 说 一点儿。
-我 不 会 说 英文。
-你 说 的 很 好。
-我 说 的 不 好。
-谢谢 你。
+#! deck = Unit 2::Exaple Sentences
+我 会 说 一点儿。|我 會 說 一點兒。|Wô huì shuō yìdiânr.|I can speak a little.|{blank}
+我 不 会 说 英文。|我 不 會 說 英文。|Wô bú huì shuō Yīngwén.|I don't speak English.|{blank}
+你 说 的 很 好。|你 說 的 很 好。|Nî shuō de hên hâo.|You speak very well.|{blank}
+我 说 的 不 好。|我 說 的 不 好。|Wô shuō de bù hâo.|I don't speak well.|{blank}
+谢谢 你。|謝謝 你。|Xièxie nî.|Thank you.|{blank}
 
-
+#! deck = Unit 3::Vocab
 可是
 中国
 呢
 
-我 说 的 不 好。
-可是 你 普通话 说 的 很 好。
-你 是 中国 人 吗？
-你 呢？
 
+#! deck = Unit 3::Exaple Sentences
+可是 你 普通话 说 的 很 好。| 可是 你 普通話 說 的 很 好。| Kêshì nî pûtōnghuà shuō de hên hâo.|But you speak Manradin very well.| {blank}
+你 是 中国 人 吗？| 你 是 中國 人 嗎?| Are you Chinese?| {blank}
+你 呢？| 你 呢？| Nî ne?| How about you?;And you?| {blank}
+我 不 是 中国 人。|我 不 是 中國 人。| Wô bú shì Zhōngguó rén.| I'm not Chinese.| {blank}
 
+#! deck = Unit 4::Vocab
 明白
 什么
 学院
@@ -61,21 +70,15 @@
 这儿
 那儿
 
-在街。
-我 明白。
-我 不 明白。
-我 不 明白 你 说 什么。
-我 不 是 中国 人。
-学院 路 在 哪儿？
-在 哪人？
-長 安 街 在 哪人？
-我 不 明白 说 什么。
-是 在 这人 吗？
-不 是 在 这人 吗。
-那人？
-那人。
-我 不 明白 你 说 什么。
-在这儿吗？
+#! deck = Unit 4::Exaple Sentences
+我 明白。|我 明白。|Wô míngbai.|I understand.|{blank}
+我 不 明白。|我 不 明白。|Wô bù míngbai.|I don't understand.|{blank}
+我 不 明白 你 说 什么。|我 不 明白 你 說 什麽。|Wô bù míngbai nî shuō shénme.|I don't understand what you are saying.|{blank}
+学院 路 在 哪儿？|學院 路 在 哪兒？|Xuéyuàn Lù zài nâr?|Where is College Road?|{blank}
+在 那儿。|在 那兒。|Zài nàr.|It's over there.|{blank}
+长 安 街 呢？|長 安 街 呢?|Cháng Àn Jiē ne?|Where is Long Peace Street?|{blank}
+是 在 这儿。|是在這兒。|Shì zài zhèr.|It is over there.|{blank}
+在这儿吗？|在這兒嗎?|Shì zài zhèr ma?|Is it over here?|{blank}
 
-
+#! deck = Misc
 不要 卖弄 你 的 电脑 水平 了 我们 都 是 行家

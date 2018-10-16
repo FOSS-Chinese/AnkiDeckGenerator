@@ -34,9 +34,9 @@ program
     .option('-t, --temp-folder [folder-path]', 'Folder to be used/created for temporary files')
     .option('-l, --libs-folder [folder-path]', 'Folder holding libraries for template')
     .option('-a, --audio-recordings-limit [integer]', 'Max amount of audio recordings to download for each character, word and sentence. (-1: all, 0: none, 1: one, 2: two) Default: 1')
-    .option('-r, --recursive-dict [boolean]', 'Download media and dict info not only for input file entries, but also for every single word, character and component found in each entry. Default: false')
+    .option('-r, --recursive-dict [boolean]', 'Download media and dict info not only for input file entries, but also for every single word, character and component found in each entry. Default: true')
     .option('-r, --recursive-cards [boolean]', 'Add cards not only for input file entries, but also for every single word, character and component found in each entry. Default: false')
-    .option('-p, --dictionary-priority-list [comma-separated-string]', 'List of dictionaries (offline and online) to gather data from. (highest priority first. Default: makemeahanzi,forvo,archchinese,mdbg)')
+    .option('-p, --dictionary-priority-list [comma-separated-string]', 'List of dictionaries (offline and online) to gather data from. (highest priority first. Default: makemeahanzi,mdbg,forvo,archchinese)')
     .action((apkgFile, cmd) => {
         autoGenerate(apkgFile, cmd).then(console.log).catch(err=>{
             fs.outputJson(archchineseCacheFile,archChineseCache).then(()=>{}).catch(e=>console.error)
@@ -51,11 +51,8 @@ async function autoGenerate(apkgFile, cmd) {
     cmd.deckDescription = cmd.deckDescription || "A new deck"
     cmd.libs = cmd.libs || './libs'
 
-    //cmd.recursiveDict = cmd.recursiveDict===true ? true : false
-    //cmd.recursiveCards = cmd.recursiveCards===true ? true : false
-
-    cmd.recursiveDict = true
-    cmd.recursiveCards = false
+    cmd.recursiveDict = cmd.recursiveDict===false ? false : true
+    cmd.recursiveCards = cmd.recursiveCards===true ? true : false
 
     forvo.init()
     mdbg.init()
@@ -88,7 +85,8 @@ async function autoGenerate(apkgFile, cmd) {
             name: "chineseAudio",
             displayName: "Chinese Audio",
             html: `<div class="chinese-audio"></div>`, // content will be generated
-            center: true
+            center: true,
+            skipField: true
         }
     ]
 
@@ -99,18 +97,13 @@ async function autoGenerate(apkgFile, cmd) {
     if (await fs.pathExists(archchineseCacheFile))
         archChineseCache = await fs.readJson(archchineseCacheFile)
 
-    const inputRaw = await fs.readFile(cmd.inputFile,'utf8') //TODO: rename chineseInput to general input or so...
+    const inputRaw = await fs.readFile(cmd.inputFile,'utf8')
     const inputLines = inputRaw.split(/\r?\n/)
     const apkgCfg = await apkg.init()
     const baseDeck = await apkg.addDeck({
         name: cmd.deckName,
         desc: cmd.deckDescription
     })
-
-    //const jqueryJs = await fs.readFile(`${cmd.libs}/jquery-3.js`,'utf8')
-    //const bootstrapJs = await fs.readFile(`${cmd.libs}/bootstrap-3.js`,'utf8')
-    //const bootstrapCss = await fs.readFile(`${cmd.libs}/bootstrap-3.css`,'utf8')
-    //const bootstrapThemeCss = await fs.readFile(`${cmd.libs}/bootstrap-3-theme.css`,'utf8')
 
     let sectionCount = -1
     function generateCollapsablePanel(heading,content,center,showByDefault) {
@@ -185,7 +178,7 @@ async function autoGenerate(apkgFile, cmd) {
     const modelToCreate = {
         name: `model`,
         //did: deck.baseConf.id,
-        flds: fields.map(field=>{return {name:field.name}}),
+        flds: fields.filter(field=>!field.skipField).map(field=>{return {name:field.name}}),
         tmpls: templates,
         css: ''
     }
@@ -194,17 +187,22 @@ async function autoGenerate(apkgFile, cmd) {
     const chars = []
     const words = []
     const sentences = []
-    const inputConfig = {
+    const inputCfg = {
         "version": 1,
         "use-online-services": true,
-        "format": 'simplified|traditional|pinyin|english',
-        "leave-blank-sequence": '{BLANK}'
+        "format": "simplified|traditional|pinyin|english|audio",
+        "leave-blank-sequence": "{blank}",
+        "separator": "|"
     }
+
+    let input = {} // TODO: push to input[dict] instead of chard, words, sentences
+
     for (const [i,line] of inputLines.entries()) {
+        line = line.trim()
         if (line.startsWith('#!')) {
-            if (line.includes(':')) {
+            if (line.includes('=')) {
                 const strippedLine = line.match(/^#!([^#$]+)(#|$)/)[1]
-                const cfgArr = line.split(':')
+                const cfgArr = line.split('=')
                 if (cfgArr.length >= 2) {
                     let key = cfgArr[0].trim().toLowerCase()
                     let value = cfgArr[1].trim().toLowerCase()
@@ -212,29 +210,47 @@ async function autoGenerate(apkgFile, cmd) {
                     value = value === "false" ? false : value
                     value = value === "null" ? null : value
                     value = value === "undefined" ? undefined : value
-                    inputConfig[key] = value
+                    inputCfg[key] = value
                 }
             }
             continue
-        } else if (!line || !line.replace(/\s/g,'')) {
+        } else if (!line || !line.trim()) {
             continue
         }
-        const lang = line.match(/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/) !== null ? 'cn' : 'en'
+        //const lang = line.match(/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/) !== null ? 'cn' : 'en'
+        const version = inputCfg['version']
+        const deckName = inputCfg['deck']
+        const format = inputCfg['format']
+        let sep = inputCfg['separator']
+        const blankSeq = inputCfg['leave-blank-sequence']
+        const cols = format.split(sep)
+        const colItems = line.split(sep)
+
+        line = line + sep.repeat(cols.length-colItems.length) // Seperator fill
+        sep = sep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escape for regex use
+
+        let lineRegex = "^"
+        for (const [i,item] of colItems.entries()) {
+            lineRegex += `(?<${cols[i]}>[^${sep}]*)`
+            lineRegex += (i < colItems.length-1 ? `${sep}` : '$')
+        }
+        const inputItem = new RegExp(lineRegex,'u').exec(line).groups
+
         let type
-        if (/[，？！。；,\?\!\.\;\s]/.test(line))
+        if (/[，？！。；,\?\!\.\;\s]/.test(inputItem.simplified))
             type = 'sentence'
-        else if (line.length > 1)
+        else if (inputItem.simplified.length > 1)
             type = 'word'
         else
             type = 'char'
 
         if (lang === 'cn') {
             if (type === 'word') {
-                words.push(line)
+                words.push(inputItem.simplified)
             } else if (type === 'sentence') {
-                sentences.push(line)
+                sentences.push(inputItem.simplified)
             } else {
-                chars.push(line)
+                chars.push(inputItem.simplified)
             }
         }
     }
