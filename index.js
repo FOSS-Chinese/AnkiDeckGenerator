@@ -7,7 +7,6 @@ const JSZip = require("jszip")
 const mustache = require('mustache')
 const OpenCC = require('opencc')
 const cliProgress = require('cli-progress')
-
 global.Promise = require('bluebird')
 Promise.longStackTraces()
 
