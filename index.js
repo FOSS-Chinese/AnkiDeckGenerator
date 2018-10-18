@@ -1,15 +1,16 @@
 #!/usr/bin/env node
 'use strict'
 
+// External libs
 const program = require('commander')
 const fs = require('fs-extra')
 const JSZip = require("jszip")
-const mustache = require('mustache')
 const OpenCC = require('opencc')
 const cliProgress = require('cli-progress')
 global.Promise = require('bluebird')
 Promise.longStackTraces()
 
+// Local libs
 const packageInfo = require('./package.json')
 const AnkiPackage = require('./libs/AnkiPackage')
 const MakeMeAHanzi = require('./libs/MakeMeAHanzi')
@@ -17,13 +18,19 @@ const Forvo = require('./libs/Forvo')
 const ArchChinese = require('./libs/ArchChinese')
 const Mdbg = require('./libs/Mdbg')
 
+// Main code libs
+const createSubdeckObjects = require('./main/createSubdeckObjects')
+const HanziDissector = require('./main/HanziDissector')
 
-const opencc = new OpenCC('s2t.json')
+// Lib initialization
+const s2t = new OpenCC('s2t.json') // To convert simplified to traditional
+const t2s = new OpenCC('t2s.json') // To convert traditional to simplified
+
 const forvo = new Forvo()
 const mdbg = new Mdbg()
 const archChinese = new ArchChinese()
-let archChineseCache = {}
-let archchineseCacheFile = './cache/archchinese-cache.json'
+let archChineseCache = {} // TODO: consider making this a class-internal feature
+let archchineseCacheFile = './cache/archchinese-cache.json' // TODO: consider passing that to init
 
 program
     .command('auto-generate <apkg-output-file>')
@@ -38,7 +45,7 @@ program
     .option('-p, --dictionary-priority-list [comma-separated-string]', 'List of dictionaries (offline and online) to gather data from. (highest priority first. Default: makemeahanzi,mdbg,forvo,archchinese)')
     .action((apkgFile, cmd) => {
         autoGenerate(apkgFile, cmd).then(console.log).catch(err=>{
-            fs.outputJson(archchineseCacheFile,archChineseCache).then(()=>{}).catch(e=>console.error)
+            fs.outputJson(archchineseCacheFile,archChineseCache).then(()=>{}).catch(e=>console.error) //TODO: Find a better way to prevent cache loss
             console.error(err)
         })
     })
@@ -53,36 +60,16 @@ async function autoGenerate(apkgFile, cmd) {
     cmd.recursiveDict = cmd.recursiveDict===false ? false : true
     cmd.recursiveCards = cmd.recursiveCards===true ? true : false
 
+    await fs.remove(apkgFile)
+
     forvo.init()
     mdbg.init()
+
     const apkg = new AnkiPackage(cmd.deckName, cmd.tempFolder)
-
     const mmah = new MakeMeAHanzi({sourcePath: './submodules/makemeahanzi'})
+    const hanziDissector = new HanziDissector(mmah)
 
-    const fields = [
-        {
-            name: "hanzi",
-            displayName: "Hànzì",
-            html: `<span class="hanzi" id="base-hanzi">{{hanzi}}</span>`,
-            center: true
-        }, {
-            name: "pinyin",
-            displayName: "Pīnyīn",
-            html: `<span class="pinyin" id="base-pinyin">{{pinyin}}</span>`,
-            center: true
-        }, {
-            name: "english",
-            displayName: "English",
-            html: `<span class="english">{{english}}</span>`,
-            center: true
-        }, {
-            name: "chineseAudio",
-            displayName: "Chinese Audio",
-            html: `<div class="chinese-audio"></div>`, // content will be generated
-            center: true,
-            skipField: true
-        }
-    ]
+    const fields = require('./main/fields.json')
 
     await fs.emptyDir(cmd.tempFolder)
     await fs.writeFile(`${cmd.tempFolder}/media`, '{}')
@@ -91,214 +78,36 @@ async function autoGenerate(apkgFile, cmd) {
     if (await fs.pathExists(archchineseCacheFile))
         archChineseCache = await fs.readJson(archchineseCacheFile)
 
-    const inputRaw = await fs.readFile(cmd.inputFile,'utf8')
-    const inputLines = inputRaw.split(/\r?\n/)
     const apkgCfg = await apkg.init()
     const baseDeck = await apkg.addDeck({
         name: cmd.deckName,
         desc: cmd.deckDescription
     })
 
-    let sectionCount = -1
-    function generateCollapsablePanel(heading,content,center,showByDefault) {
-        if (!heading)
-            return ''
-        sectionCount++
-        return `
-            <div class="panel panel-primary">
-              <div class="panel-heading" onclick="$('#collapse-${sectionCount}').toggle()">
-                <h4 class="panel-title">
-                  ${heading}
-                </h4>
-              </div>
-              <div id="collapse-${sectionCount}" class="panel-collapse collapse ${showByDefault ? 'in' : ''}">
-                <div class="panel-body ${center ? 'text-center' : ''}">
-                  ${content}
-                </div>
-              </div>
-            </div>
-        `
+    const input = await parseInputFile(cmd.inputFile)
+
+    // Create sub decks, models and templates. One model per sub deck. One template per model.
+    const subDeckObjs = createSubdeckObjects(fields,baseDeck.name,Object.keys(input))
+    const decks = subDeckObjs.decks
+    const models = subDeckObjs.models
+    const templates = subDeckObjs.templates
+
+    for (const [deckName,inputForDeck] of Object.entries(input)) {
+        const simplified = input[deckName].simplified
+        const traditional = input[deckName].traditional
+        if (!input[deckName].simplified && input[deckName].traditional) { // generate traditional hanzi if missing
+            input[deckName].simplified = await s2t.convertPromise(simplified)
+        }
+        if (!input[deckName].traditional && input[deckName].simplified) { // generate simplified hanzi if missing
+            input[deckName].traditional = await t2s.convertPromise(traditional)
+        }
     }
 
-    async function generateTemplateHtml(fields) {
-        let collapsablePanels = ''
-        for (let [i,field] of fields.entries()) {
-            const content = field.html || `{{${field.name}}}`
-            collapsablePanels += generateCollapsablePanel(field.displayName, content, !!field.center, i===0)
-        }
-        collapsablePanels += generateCollapsablePanel("Debug", `
-            <div class="form-group">
-                <textarea class="form-control rounded-0" id="debug-input" rows="5" onkeypress="if (event.keyCode == 13 && !event.shiftKey) { try { document.getElementById('debug-output').innerHTML=eval(document.getElementById('debug-input').value); } catch(e) { document.getElementById('debug-output').innerHTML=e; }; return false; }">jQuery.fn.jquery</textarea>
-            </div>
-            <div class="form-group">
-                <button onclick="try { document.getElementById('debug-output').innerHTML=eval(document.getElementById('debug-input').value); } catch(e) { document.getElementById('debug-output').innerHTML=e; }" class="btn btn-danger btn-block">Execute</button>
-            </div>
-            <div class="form-group">
-                <textarea readonly class="form-control rounded-0" id="debug-output" rows="5"></textarea>
-            </div>
-        `, false, false)
-        const afmtTpl = await fs.readFile('./templates/afmt.mustache.html','utf8')
-        const afmtTplView = {
-            collapsablePanels: collapsablePanels,
-            baseDeckId: baseDeck.baseConf.id,
-            deckType: fields[0].name,
-            panelCount: sectionCount
-        }
-        return mustache.render(afmtTpl, afmtTplView)
-    }
+    console.log(`Dissecting input data${cmd.recursiveDict ? ' down to component level' : ''}...`)
+    const dissectedInput = hanziDissector.dissect(input,cmd.recursiveDict)
 
-    const questionSkipTemplate = await fs.readFile('./templates/qfmt.mustache.html','utf8')
-
-    const decks = []
-    const templates = []
-    for (const [i,field] of fields.entries()) {
-        const reorderedFields = JSON.parse(JSON.stringify(fields)).sort((x,y) => x.name === field.name ? -1 : y.name === field.name ? 1 : 0)
-        const template = {
-            name: `${field.name}Template`,
-            qfmt: questionSkipTemplate,
-            afmt: await generateTemplateHtml(reorderedFields)
-        }
-        templates.push(template)
-
-        const deckToCreate = {
-            name: `${cmd.deckName}::${field.displayName}`,
-            desc: `Subdeck for learning by ${field.displayName}`
-        }
-        const deck = await apkg.addDeck(deckToCreate)
-        decks.push(deck)
-    }
-
-    const modelToCreate = {
-        name: `model`,
-        //did: deck.baseConf.id,
-        flds: fields.filter(field=>!field.skipField).map(field=>{return {name:field.name}}),
-        tmpls: templates,
-        css: ''
-    }
-    const model = await apkg.addModel(modelToCreate)
-
-    const chars = []
-    const words = []
-    const sentences = []
-    const inputCfg = {
-        "version": 1,
-        "use-online-services": true,
-        "format": "simplified|traditional|pinyin|english|audio",
-        "leave-blank-sequence": "{blank}",
-        "separator": "|"
-    }
-
-    let input = {} // TODO: finish impl
-
-    for (let [i,line] of inputLines.entries()) {
-        line = line.trim()
-        if (line.startsWith('#!')) {
-            if (line.includes('=')) {
-                const strippedLine = line.match(/^#!([^#$]+)(#|$)/)[1]
-                const cfgArr = line.split('=')
-                if (cfgArr.length >= 2) {
-                    let key = cfgArr[0].trim().toLowerCase()
-                    let value = cfgArr[1].trim().toLowerCase()
-                    value = value === "true" ? true : value
-                    value = value === "false" ? false : value
-                    value = value === "null" ? null : value
-                    value = value === "undefined" ? undefined : value
-                    inputCfg[key] = value
-                }
-            }
-            continue
-        } else if (!line || !line.trim()) {
-            continue
-        }
-        //const lang = line.match(/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/) !== null ? 'cn' : 'en'
-        const version = inputCfg['version']
-        const deckName = inputCfg['deck']
-        if (!input[deckName])
-            input[deckName] = {chars:[],words:[],sentences:[]}
-        const format = inputCfg['format']
-        let sep = inputCfg['separator']
-        const blankSeq = inputCfg['leave-blank-sequence']
-        const cols = format.split(sep)
-        const colItems = line.split(sep)
-
-        line = line + sep.repeat(cols.length-colItems.length) // Seperator fill
-        sep = sep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escape for regex use
-
-        let lineRegex = "^"
-        for (const [i,item] of cols.entries()) {
-            lineRegex += `(?<${cols[i]}>[^${sep}]*)`
-            lineRegex += (i < cols.length-1 ? `${sep}` : '$')
-        }
-        const inputItem = new RegExp(lineRegex,'u').exec(line).groups
-
-        let type
-        if (/[，？！。；,\?\!\.\;\s]/.test(inputItem.simplified)) {
-            type = 'sentence'
-        } else if (inputItem.simplified.length > 1) {
-            type = 'word'
-        } else {
-            type = 'char'
-        }
-        //if (lang === 'cn') {
-            if (type === 'word') {
-                input[deckName].words.push(inputItem)
-                words.push(inputItem.simplified)
-            } else if (type === 'sentence') {
-                input[deckName].sentences.push(inputItem)
-                sentences.push(inputItem.simplified)
-            } else {
-                input[deckName].chars.push(inputItem)
-                chars.push(inputItem.simplified)
-            }
-        //}
-    }
-
-    //////////// Extract words, chars and components from input
-    let charDataObj
-    let allChars = chars
-    let extractedChars = []
-    let extractedWords = []
-    if (cmd.recursiveDict) {
-        console.log('Dissecting input data down to component level...')
-        for (const [i,sentence] of sentences.entries()) {
-            for (let [j,word] of sentence.split(' ').entries()) {
-                word = word.replace(/[，？！。；,\?\!\.\;]/g,'')
-                if (!words.includes(word) && !extractedWords.includes(word))
-                    extractedWords.push(word)
-                for (const [k,char] of word.split('').entries()) {
-                    if (!chars.includes(char) && !extractedChars.includes(char))
-                        extractedChars.push(char)
-                }
-            }
-        }
-        for (let [i,word] of words.entries()) {
-            word = word.replace(/[，？！。；,\?\!\.\;]/g,'')
-            for (const [j,char] of word.split('').entries()) {
-                if (!chars.includes(char) && !extractedChars.includes(char))
-                    extractedChars.push(char)
-            }
-        }
-
-        async function extractCmpsRecursively(char) {
-            const charData = (await mmah.getCharData([char]))[char]
-            if (charData.decomposition === '？')
-                return
-            const cmps = charData.decomposition.replace(/[\u2FF0-\u2FFB？]+/g,'').split('')
-            for (const [i,cmp] of cmps.entries()) {
-                if (!extractedChars.includes(cmp)) {
-                    extractedChars.push(cmp)
-                    await extractCmpsRecursively(cmp)
-                }
-            }
-        }
-        for (const [i,char] of chars.concat(extractedChars).entries()) {
-            await extractCmpsRecursively(char)
-        }
-        allChars = chars.concat(extractedChars)
-    }
-    //charDataObj = await mmah.getCharData(allChars,'char',true)
-    charDataObj = await mmah.getCharData(allChars)
-
+    console.log(`Looking up ${cmd.recursiveDict ? 'all' : 'input'} chars...`)
+    const charDataObj = await mmah.getCharData(allChars,'char',cmd.recursiveDict)
     for (const [char,charData] of Object.entries(charDataObj)) {
         charDataObj[char].traditional = await opencc.convertPromise(char)
     }

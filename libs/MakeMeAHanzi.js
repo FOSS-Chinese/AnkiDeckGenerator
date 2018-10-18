@@ -33,7 +33,7 @@ class MakeMeAHanzi {
                     charData.animatedSvg = `${this.animatedSvgsDir}/${charData.charCode}.svg`
                     charData.stillSvg = `${this.stillSvgsDir}/${charData.charCode}-still.svg`
                     const id = (by==='char') ? charData.character : charData.charCode // index by char or by charCode
-                    collectedData[id] = charData
+                    collectedData[id] = charData // TODO: is that a good idea? (input by charCode causes output by charCode)
                 }
             })
         })

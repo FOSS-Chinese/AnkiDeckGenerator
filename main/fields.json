@@ -1,0 +1,24 @@
+[
+    {
+        "name": "hanzi",
+        "displayName": "Hànzì",
+        "html": "<span class=\"hanzi\" id=\"base-hanzi\">{{hanzi}}</span>",
+        "center": true
+    }, {
+        "name": "pinyin",
+        "displayName": "Pīnyīn",
+        "html": "<span class=\"pinyin\" id=\"base-pinyin\">{{pinyin}}</span>",
+        "center": true
+    }, {
+        "name": "english",
+        "displayName": "English",
+        "html": "<span class=\"english\">{{english}}</span>",
+        "center": true
+    }, {
+        "name": "chineseAudio",
+        "displayName": "Chinese Audio",
+        "html": "<div class=\"chinese-audio\"></div>",
+        "center": true,
+        "skipField": true
+    }
+]
