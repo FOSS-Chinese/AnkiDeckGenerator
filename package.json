@@ -24,7 +24,8 @@
   "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "example": "node index.js auto-generate MyNewPopupDeck.apkg -c example-input.txt -n MyNewPopupDeck -d MyDeckDescription"
+    "example": "node index.js auto-generate ExampleDeck.apkg -c example-input.txt -n ExampleDeck -d MyDeckDescription",
+    "anki": "anki \"$(pwd)/ExampleDeck.apkg\""
   },
   "repository": {
     "type": "git",

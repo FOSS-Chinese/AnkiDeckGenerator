@@ -12,11 +12,11 @@ global.Promise = require('bluebird')
 Promise.longStackTraces()
 
 const packageInfo = require('./package.json')
-const AnkiPackage = require('./AnkiPackage')
-const MakeMeAHanzi = require('./MakeMeAHanzi')
-const Forvo = require('./Forvo')
-const ArchChinese = require('./ArchChinese')
-const Mdbg = require('./Mdbg')
+const AnkiPackage = require('./libs/AnkiPackage')
+const MakeMeAHanzi = require('./libs/MakeMeAHanzi')
+const Forvo = require('./libs/Forvo')
+const ArchChinese = require('./libs/ArchChinese')
+const Mdbg = require('./libs/Mdbg')
 
 
 const opencc = new OpenCC('s2t.json')
@@ -24,7 +24,7 @@ const forvo = new Forvo()
 const mdbg = new Mdbg()
 const archChinese = new ArchChinese()
 let archChineseCache = {}
-let archchineseCacheFile = './archchinese-cache.json'
+let archchineseCacheFile = './cache/archchinese-cache.json'
 
 program
     .command('auto-generate <apkg-output-file>')
@@ -49,7 +49,7 @@ async function autoGenerate(apkgFile, cmd) {
     cmd.tempFolder = cmd.tempFolder || './anki-deck-generator-temp'
     cmd.deckName = cmd.deckName || "NewDeck"
     cmd.deckDescription = cmd.deckDescription || "A new deck"
-    cmd.libs = cmd.libs || './libs'
+    cmd.libs = cmd.libs || './template-libs'
 
     cmd.recursiveDict = cmd.recursiveDict===false ? false : true
     cmd.recursiveCards = cmd.recursiveCards===true ? true : false
@@ -58,12 +58,7 @@ async function autoGenerate(apkgFile, cmd) {
     mdbg.init()
     const apkg = new AnkiPackage(cmd.deckName, cmd.tempFolder)
 
-    let mmahConfg = {}
-    mmahConfg.graphicsDataPath = './submodules/makemeahanzi/graphics.txt'
-    mmahConfg.dictPath = './submodules/makemeahanzi/dictionary.txt'
-    mmahConfg.animatedSvgsDir = './submodules/makemeahanzi/svgs'
-    mmahConfg.stillSvgsDir = './submodules/makemeahanzi/svgs-still'
-    const mmah = new MakeMeAHanzi(mmahConfg)
+    const mmah = new MakeMeAHanzi({sourcePath: './submodules/makemeahanzi'})
 
     const fields = [
         {
@@ -126,7 +121,6 @@ async function autoGenerate(apkgFile, cmd) {
         `
     }
 
-
     async function generateTemplateHtml(fields) {
         let collapsablePanels = ''
         for (let [i,field] of fields.entries()) {
@@ -144,7 +138,7 @@ async function autoGenerate(apkgFile, cmd) {
                 <textarea readonly class="form-control rounded-0" id="debug-output" rows="5"></textarea>
             </div>
         `, false, false)
-        const afmtTpl = await fs.readFile('afmt.mustache.html','utf8')
+        const afmtTpl = await fs.readFile('./templates/afmt.mustache.html','utf8')
         const afmtTplView = {
             collapsablePanels: collapsablePanels,
             baseDeckId: baseDeck.baseConf.id,
@@ -154,7 +148,7 @@ async function autoGenerate(apkgFile, cmd) {
         return mustache.render(afmtTpl, afmtTplView)
     }
 
-    const questionSkipTemplate = await fs.readFile('qfmt.mustache.html','utf8')
+    const questionSkipTemplate = await fs.readFile('./templates/qfmt.mustache.html','utf8')
 
     const decks = []
     const templates = []
@@ -195,9 +189,9 @@ async function autoGenerate(apkgFile, cmd) {
         "separator": "|"
     }
 
-    let input = {} // TODO: push to input[dict] instead of chard, words, sentences
+    let input = {} // TODO: finish impl
 
-    for (const [i,line] of inputLines.entries()) {
+    for (let [i,line] of inputLines.entries()) {
         line = line.trim()
         if (line.startsWith('#!')) {
             if (line.includes('=')) {
@@ -220,6 +214,8 @@ async function autoGenerate(apkgFile, cmd) {
         //const lang = line.match(/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/) !== null ? 'cn' : 'en'
         const version = inputCfg['version']
         const deckName = inputCfg['deck']
+        if (!input[deckName])
+            input[deckName] = {chars:[],words:[],sentences:[]}
         const format = inputCfg['format']
         let sep = inputCfg['separator']
         const blankSeq = inputCfg['leave-blank-sequence']
@@ -230,29 +226,32 @@ async function autoGenerate(apkgFile, cmd) {
         sep = sep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escape for regex use
 
         let lineRegex = "^"
-        for (const [i,item] of colItems.entries()) {
+        for (const [i,item] of cols.entries()) {
             lineRegex += `(?<${cols[i]}>[^${sep}]*)`
-            lineRegex += (i < colItems.length-1 ? `${sep}` : '$')
+            lineRegex += (i < cols.length-1 ? `${sep}` : '$')
         }
         const inputItem = new RegExp(lineRegex,'u').exec(line).groups
 
         let type
-        if (/[，？！。；,\?\!\.\;\s]/.test(inputItem.simplified))
+        if (/[，？！。；,\?\!\.\;\s]/.test(inputItem.simplified)) {
             type = 'sentence'
-        else if (inputItem.simplified.length > 1)
+        } else if (inputItem.simplified.length > 1) {
             type = 'word'
-        else
+        } else {
             type = 'char'
-
-        if (lang === 'cn') {
+        }
+        //if (lang === 'cn') {
             if (type === 'word') {
+                input[deckName].words.push(inputItem)
                 words.push(inputItem.simplified)
             } else if (type === 'sentence') {
+                input[deckName].sentences.push(inputItem)
                 sentences.push(inputItem.simplified)
             } else {
+                input[deckName].chars.push(inputItem)
                 chars.push(inputItem.simplified)
             }
-        }
+        //}
     }
 
     //////////// Extract words, chars and components from input
@@ -454,7 +453,7 @@ async function autoGenerate(apkgFile, cmd) {
 
     for (const [i,sentence] of sentences.entries()) {
         try {
-            const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',sentence)
+            const mediaToAdd = await forvo.downloadAudio('./cache/anki-audio-dl-cache',sentence)
             await apkg.addMedia(mediaToAdd)
             if (!charDataObj[sentence])
                 charDataObj[sentence] = {}
@@ -476,7 +475,7 @@ async function autoGenerate(apkgFile, cmd) {
     }
     for (const [i,word] of dictWords.entries()) {
         try {
-            const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',word)
+            const mediaToAdd = await forvo.downloadAudio('./cache/anki-audio-dl-cache',word)
             await apkg.addMedia(mediaToAdd)
             if (!charDataObj[word])
                 charDataObj[word] = {}
@@ -499,7 +498,7 @@ async function autoGenerate(apkgFile, cmd) {
 
     for (const [i,char] of dictChars.entries()) {
         try {
-            const mediaToAdd = await forvo.downloadAudio('./anki-audio-dl-cache',char)
+            const mediaToAdd = await forvo.downloadAudio('./cache/anki-audio-dl-cache',char)
             charDataObj[char].audio = []
             const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
             for (const [i,filename] of filenames.entries()) {
@@ -532,7 +531,7 @@ async function autoGenerate(apkgFile, cmd) {
     const mediaToAdd = []
     let i = 0
     for (const [char,charData] of Object.entries(charDataObj)) {
-        mediaToAdd.push(`${mmahConfg.stillSvgsDir}/${char.charCodeAt()}-still.svg`)
+        mediaToAdd.push(`${mmah.stillSvgsDir}/${char.charCodeAt()}-still.svg`)
         i++
         if (i > 3000) {
             console.warn(`Stroke order diagram files have been cut off at diagram file #${i+1}.`)
@@ -567,5 +566,5 @@ async function autoGenerate(apkgFile, cmd) {
     await fs.writeFile(apkgFile, content)
     await fs.remove(cmd.tempFolder)
     await fs.outputJson(archchineseCacheFile,archChineseCache)
-    return "Done!"
+    return `Successfully generated ${apkgFile}!`
 }

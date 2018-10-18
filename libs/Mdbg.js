@@ -8,7 +8,7 @@ const JSZip = require("jszip")
 const jszip = new JSZip()
 
 class Mdbg {
-    constructor(dictPath='./cedict_ts.u8') {
+    constructor(dictPath='./cache/cedict_ts.u8') {
         this.dictPath = dictPath
         this.zipName = 'cedict_1_0_ts_utf-8_mdbg.zip'
         this.downloadUrl = `https://www.mdbg.net/chinese/export/cedict/${this.zipName}`

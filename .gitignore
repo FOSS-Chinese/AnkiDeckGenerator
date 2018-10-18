@@ -1,9 +1,5 @@
 node_modules
 package-lock.json
-
+cache/*
 *.apkg
-anki-audio-dl-cache
-
-anki-deck-generator-temp
-archchinese-cache.json
-cedict_ts.u8
+package-lock.json

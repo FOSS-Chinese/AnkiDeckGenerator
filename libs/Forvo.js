@@ -10,7 +10,7 @@ function sleep(ms) {
 }
 
 class Forvo {
-    constructor(cacheDir="./anki-audio-dl-cache") {
+    constructor(cacheDir="./cache/anki-audio-dl-cache") {
         this.mainBaseUrl = "https://forvo.com"
         this.searchRoute = "search"
         this.wordRoute = "word"
