@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+bigDict#!/usr/bin/env node
 'use strict'
 
 // External libs
@@ -40,7 +40,8 @@ program
     .option('-t, --temp-folder [folder-path]', 'Folder to be used/created for temporary files')
     .option('-l, --libs-folder [folder-path]', 'Folder holding libraries for template')
     .option('-a, --audio-recordings-limit [integer]', 'Max amount of audio recordings to download for each character, word and sentence. (-1: all, 0: none, 1: one, 2: two) Default: 1')
-    .option('-r, --recursive-dict [boolean]', 'Download media and dict info not only for input file entries, but also for every single word, character and component found in each entry. Default: true')
+    .option('-r, --big-dict [boolean]', 'Include all hanzi chars in the deck-internal dictionary. (Use only if you want to add cards later on without the generator.) Default: false')
+    .option('-r, --recursive-media [boolean]', 'Download media not only for input file entries, but also for every single word, character and component found in each entry. Default: true')
     .option('-r, --recursive-cards [boolean]', 'Add cards not only for input file entries, but also for every single word, character and component found in each entry. Default: false')
     .option('-p, --dictionary-priority-list [comma-separated-string]', 'List of dictionaries (offline and online) to gather data from. (highest priority first. Default: makemeahanzi,mdbg,forvo,archchinese)')
     .action((apkgFile, cmd) => {
@@ -57,7 +58,8 @@ async function autoGenerate(apkgFile, cmd) {
     cmd.deckDescription = cmd.deckDescription || "A new deck"
     cmd.libs = cmd.libs || './template-libs'
 
-    cmd.recursiveDict = cmd.recursiveDict===false ? false : true
+    cmd.bigDict = cmd.bigDict===false ? false : true
+    cmd.recursiveMedia = cmd.recursiveMedia===false ? false : true
     cmd.recursiveCards = cmd.recursiveCards===true ? true : false
 
     await fs.remove(apkgFile)
@@ -92,6 +94,7 @@ async function autoGenerate(apkgFile, cmd) {
     const models = subDeckObjs.models
     const templates = subDeckObjs.templates
 
+    // Fill missing input hanzi
     for (const [deckName,inputForDeck] of Object.entries(input)) {
         const simplified = input[deckName].simplified
         const traditional = input[deckName].traditional
@@ -103,17 +106,106 @@ async function autoGenerate(apkgFile, cmd) {
         }
     }
 
-    console.log(`Dissecting input data${cmd.recursiveDict ? ' down to component level' : ''}...`)
-    const dissectedInput = hanziDissector.dissect(input,cmd.recursiveDict)
+    console.log(`Dissecting input data down to component level...`)
+    const dissectedInput = hanziDissector.dissect(input)
+    const allChars = dissectedInput.allChars
+    const allWords = dissectedInput.allWords
 
-    console.log(`Looking up ${cmd.recursiveDict ? 'all' : 'input'} chars...`)
-    const charDataObj = await mmah.getCharData(allChars,'char',cmd.recursiveDict)
-    for (const [char,charData] of Object.entries(charDataObj)) {
-        charDataObj[char].traditional = await opencc.convertPromise(char)
+    console.log(`Looking up ${cmd.bigDict ? 'all' : 'input'} chars for deck-internal dictionary...`)
+    const dict = await mmah.getCharData(allChars.map(char=>char.simplified),'char',cmd.bigDict)
+
+    for (const [char,charData] of Object.entries(dict)) { // Generate traditional hanzi for chars in dictionary
+        dict[char].traditional = await s2t.convertPromise(char)
     }
 
     console.log('Getting word data from mdbg...')
-    let wordDataObj = await mdbg.getEntryByHanzi(words.concat(extractedWords))
+    let wordDataObj = await mdbg.getEntryByHanzi(allWords.map(word=>word.simplified))
+
+    for (const [word,wordData] of Object.entries(wordDataObj)) {
+        if (dict[word])
+            continue
+        dict[word] = wordData
+    }
+
+    const allInputHanzi = allChars.concat(allWords).concat(allSentences)
+
+    for (const [i,hanziDataGroups] of allInputHanzi.entries()) { // charDataGroups={simplified:'..',traditional:'..',engligh:'..',pinyin:'..',audio:'..'}
+        for (const [key,value] of Object.entries(hanziDataGroups)) {
+            //if (value !== '{SKIP_LOOKPUP}') {
+                if (value !== '') {
+                    dict[hanziDataGroups.simplified][key] = value
+                }
+            //}
+        }
+    }
+
+    for (const [i,hanziDataGroups] of allInputHanzi.entries()) { // charDataGroups={simplified:'..',traditional:'..',engligh:'..',pinyin:'..',audio:'..'}
+        const hanzi = hanziDataGroups.simplified
+        if (!dict[hanzi].pinyin || !dict[hanzi].english) {
+            const type = hanziDissect.getTextType(hanzi)
+            let results = []
+            try {
+                if (typeof archChineseCache[hanzi] === 'undefined') {
+                    results = type==='sentence' ? await archChinese.searchSentences(hanzi) : await archChinese.searchWords(word)
+                } else {
+                    results = archChineseCache[hanzi]
+                }
+                if (results.length < 1) {
+                    console.warn(`Skipping "${hanzi}" as no result was found on ArchChinese.`)
+                    continue
+                }
+            } catch(e) {
+                if (e.error.syscall === 'getaddrinfo' && e.error.code === 'ENOTFOUND')
+                    console.warn(`DNS request failed. ArchChinese search for ${type} "${hanzi}" skipped.`)
+                else
+                    throw e
+                continue
+            }
+            if (!results || results.length < 1) {
+                console.warn(`Skipping "${hanzi}" as no match for this ${type} was found on ArchChinese.`)
+                continue
+            }
+            const filteredResults = results.filter(r=>r.simplified.replace(/\s/g,'')===sentence.replace(/\s/g,'')||r.traditional.replace(/\s/g,'')===sentence.replace(/\s/g,''))
+            if (filteredResults.length < 1) {
+                console.warn(`Skipping "${hanzi}" as no exact match for this ${type} was found on ArchChinese.`)
+                continue
+            }
+            archChineseCache[sentence] = filteredResults
+            const result = archChineseCache[hanzi][0]
+        }
+        if (!dict[hanzi].traditional) {
+            dict[hanzi].traditional = await s2t.convertPromise(dict[hanzi].simplified)
+        }
+    }
+
+    // Add audio files
+    for (const [i,hanziDataGroups] of allInputHanzi.entries()) {
+        const hanzi = hanziDataGroups.simplified
+        if (dict[hanzi].audio && dict[hanzi].audio.length > 0 && dict[hanzi].audio[0] === '{SKIP_LOOKPUP}')
+            continue
+
+        if (dict[hanzi].audio && dict[hanzi].audio.length > 0) {
+            await apkg.addMedia(dict[hanzi].audio))
+        } else { // TODO: implement switch to specify if forvo should still be hit even if audio was specified explicitly
+            try {
+                const mediaToAdd = await forvo.downloadAudio('./cache/anki-audio-dl-cache',hanzi)
+                await apkg.addMedia(mediaToAdd)
+                dict[hanzi].audio = []
+                const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
+                dict[hanzi].audio = dict[hanzi].audio.concat(filenames)
+            } catch(e) {
+                if (e.statusCode === 403)
+                    console.warn(`Forvo blocked download of audio for "${hanzi}". Try again later.`)
+                else if (e.statusCode === 404)
+                    console.warn(`Forvo audio download for "${hanzi}" returned a 404 Not Found.`)
+                else if (e.error.syscall === 'getaddrinfo' && e.error.code === 'ENOTFOUND')
+                    console.warn(`DNS request failed. Forvo audio download for "${hanzi}" skipped.`)
+                else
+                    throw e
+            }
+            await apkg.addMedia(dict[hanzi].audio))
+        }
+    }
 
     /////////// Create notes+cards
     const notes = []
@@ -124,107 +216,13 @@ async function autoGenerate(apkgFile, cmd) {
         cardChars = chars.concat(extractedChars)
         cardWords = words.concat(extractedWords)
     }
-    for (const [i,sentence] of sentences.entries()) {
-        let results = []
-        try {
-            if (typeof archChineseCache[sentence] === 'undefined') {
-                results = await archChinese.searchSentences(sentence)
-            } else {
-                results = archChineseCache[sentence]
-            }
-            if (results.length < 1) {
-                console.warn(`Skipping "${sentence}" as no result was found on ArchChinese.`)
-                continue
-            }
-        } catch(e) {
-            if (e.error.syscall === 'getaddrinfo' && e.error.code === 'ENOTFOUND')
-                console.warn(`DNS request failed. ArchChinese search for sentence "${sentence}" skipped.`)
-            else
-                throw e
-            continue
-        }
-        const filteredResults = results.filter(r=>r.simplified.replace(/\s/g,'')===sentence.replace(/\s/g,'')||r.traditional.replace(/\s/g,'')===sentence.replace(/\s/g,''))
-        if (filteredResults.length < 1) {
-            console.warn(`Skipping "${sentence}" as no match was found on ArchChinese.`)
-            continue
-        }
-        archChineseCache[sentence] = filteredResults
-        const result = archChineseCache[sentence][0]
 
-        let fieldContentArr = []
-        fieldContentArr.push(sentence)
-        fieldContentArr.push(result.pinyin)
-        fieldContentArr.push(result.english.join('; '))
-        fieldContentArr.push('')
-
-        const noteToAdd = {
-            mid: model.id,
-            flds: fieldContentArr.map(item=>item.replace(/'/g,"&#39;")),
-            sfld: fields[0].name
-        }
-        const note = await apkg.addNote(noteToAdd)
-        notes.push(note)
-    }
-
-    for (const [i,word] of cardWords.entries()) {
-        let result = wordDataObj[word]
-        if (!result) {
-            let results = []
-            try {
-                if (typeof archChineseCache[word] === 'undefined') {
-                    results = await archChinese.searchWords(word)
-                } else {
-                    results = archChineseCache[word]
-                }
-                //if (!results || results.length < 1) {
-                //    console.warn(`Skipping word "${word}" as no result was found on ArchChinese.`)
-                //    continue
-                //}
-            } catch(e) {
-                if (e.error.syscall === 'getaddrinfo' && e.error.code === 'ENOTFOUND')
-                    console.warn(`DNS request failed. ArchChinese search for sentence "${word}" skipped.`)
-                else
-                    throw e
-                continue
-            }
-            if (!results || results.length < 1) {
-
-            } else {
-                const filteredResults = results.filter(r=>r.simplified===word||r.traditional===word)
-                if (filteredResults.length < 1) {
-                    //console.warn(`Skipping word "${word}" as no match was found on ArchChinese.`)
-                    //continue
-                } else {
-                    archChineseCache[word] = filteredResults
-                    result = archChineseCache[word][0]
-                }
-            }
-        }
-
-        if (!result) {
-            console.warn(`No entry for word ${word} found on mdbg and ArchChinese.`)
-            continue
-        }
-        let fieldContentArr = []
-        fieldContentArr.push(word)
-        fieldContentArr.push(result.pinyin)
-        fieldContentArr.push(result.english.join('; '))
-        fieldContentArr.push('')
-
-        const noteToAdd = {
-            mid: model.id,
-            flds: fieldContentArr.map(item=>item.replace(/'/g,"&#39;")),
-            sfld: fields[0].name
-        }
-        const note = await apkg.addNote(noteToAdd)
-        notes.push(note)
-    }
     for (const [i,char] of cardChars.entries()) {
-        let itemData = charDataObj[char]
+        let itemData = dict[char]
         let fieldContentArr = []
         fieldContentArr.push(char || '')
         fieldContentArr.push(itemData.pinyin ? itemData.pinyin.join(' / ') : '')
-        fieldContentArr.push(itemData.definition || '')
+        fieldContentArr.push(itemData.english || '')
         fieldContentArr.push('')
 
         const noteToAdd = {
@@ -263,12 +261,12 @@ async function autoGenerate(apkgFile, cmd) {
         try {
             const mediaToAdd = await forvo.downloadAudio('./cache/anki-audio-dl-cache',sentence)
             await apkg.addMedia(mediaToAdd)
-            if (!charDataObj[sentence])
-                charDataObj[sentence] = {}
-            charDataObj[sentence].audio = []
+            if (!dict[sentence])
+                dict[sentence] = {}
+            dict[sentence].audio = []
             const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
             for (const [i,filename] of filenames.entries()) {
-                charDataObj[sentence].audio.push(filename)
+                dict[sentence].audio.push(filename)
             }
         } catch(e) {
             if (e.statusCode === 403)
@@ -285,12 +283,12 @@ async function autoGenerate(apkgFile, cmd) {
         try {
             const mediaToAdd = await forvo.downloadAudio('./cache/anki-audio-dl-cache',word)
             await apkg.addMedia(mediaToAdd)
-            if (!charDataObj[word])
-                charDataObj[word] = {}
-            charDataObj[word].audio = []
+            if (!dict[word])
+                dict[word] = {}
+            dict[word].audio = []
             const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
             for (const [i,filename] of filenames.entries()) {
-                charDataObj[word].audio.push(filename)
+                dict[word].audio.push(filename)
             }
         } catch(e) {
             if (e.statusCode === 403)
@@ -307,10 +305,10 @@ async function autoGenerate(apkgFile, cmd) {
     for (const [i,char] of dictChars.entries()) {
         try {
             const mediaToAdd = await forvo.downloadAudio('./cache/anki-audio-dl-cache',char)
-            charDataObj[char].audio = []
+            dict[char].audio = []
             const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
             for (const [i,filename] of filenames.entries()) {
-                charDataObj[char].audio.push(filename)
+                dict[char].audio.push(filename)
             }
             await apkg.addMedia(mediaToAdd)
         } catch(e) {
@@ -326,19 +324,19 @@ async function autoGenerate(apkgFile, cmd) {
     }
 
     // Add base dict
-    await fs.outputFile(`${cmd.tempFolder}/_dict-${baseDeck.baseConf.id}.jsonp`,`onLoadDict(${JSON.stringify(charDataObj)})`)
+    await fs.outputFile(`${cmd.tempFolder}/_dict-${baseDeck.baseConf.id}.jsonp`,`onLoadDict(${JSON.stringify(dict)})`)
     await apkg.addMedia(`${cmd.tempFolder}/_dict-${baseDeck.baseConf.id}.jsonp`)
     await fs.remove(`${cmd.tempFolder}/_dict-${baseDeck.baseConf.id}.jsonp`)
 
     // Add all stroke order diagrams
     console.log("Generating big char dict...")
-    charDataObj = await mmah.getCharData(allChars,'char',true)
-    for (const [char,charData] of Object.entries(charDataObj)) {
-        charDataObj[char].traditional = await opencc.convertPromise(char)
+    dict = await mmah.getCharData(allChars,'char',true)
+    for (const [char,charData] of Object.entries(dict)) {
+        dict[char].traditional = await s2t.convertPromise(char)
     }
     const mediaToAdd = []
     let i = 0
-    for (const [char,charData] of Object.entries(charDataObj)) {
+    for (const [char,charData] of Object.entries(dict)) {
         mediaToAdd.push(`${mmah.stillSvgsDir}/${char.charCodeAt()}-still.svg`)
         i++
         if (i > 3000) {
@@ -348,7 +346,7 @@ async function autoGenerate(apkgFile, cmd) {
     }
     // Add complete dict
     await apkg.addMedia(mediaToAdd)
-    await fs.outputFile(`${cmd.tempFolder}/_big-dict-${baseDeck.baseConf.id}.jsonp`,`onLoadBigDict(${JSON.stringify(charDataObj)})`)
+    await fs.outputFile(`${cmd.tempFolder}/_big-dict-${baseDeck.baseConf.id}.jsonp`,`onLoadBigDict(${JSON.stringify(dict)})`)
     await apkg.addMedia(`${cmd.tempFolder}/_big-dict-${baseDeck.baseConf.id}.jsonp`)
 
     await fs.remove(`${cmd.tempFolder}/_dict-${baseDeck.baseConf.id}.jsonp`)

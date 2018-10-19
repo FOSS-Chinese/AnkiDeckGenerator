@@ -1,9 +1,10 @@
 #! version = 1
 #! use-online-services = true # Not implemented yet
-#! leave-blank-sequence = {blank} # Not implemented yet
+#! leave-blank-sequence = {SKIP_LOOKPUP}
 #! separator = |
 #! format = simplified|traditional|pinyin|english|audio
 #! base-deck = MyDeck
+#! value-separator = ;
 
 #! deck = Unit 1::Vocab
 对不起

@@ -7,8 +7,9 @@ async function parseInputFile(inputFile) {
         "version": 1,
         "use-online-services": true,
         "format": "simplified|traditional|pinyin|english|audio",
-        "leave-blank-sequence": "{blank}",
-        "separator": "|"
+        "leave-blank-sequence": "{SKIP_LOOKPUP}",
+        "separator": "|",
+        "value-separator": ";"
     }
 
     const inputRaw = await fs.readFile(inputFile,'utf8')
@@ -42,6 +43,7 @@ async function parseInputFile(inputFile) {
             input[deckName] = {chars:[],words:[],sentences:[]}
         const format = inputCfg['format']
         let sep = inputCfg['separator']
+        let valSep = inputCfg['value-separator']
         const blankSeq = inputCfg['leave-blank-sequence']
         const cols = format.split(sep)
         const colItems = line.split(sep)
@@ -55,6 +57,13 @@ async function parseInputFile(inputFile) {
             lineRegex += (i < cols.length-1 ? `${sep}` : '$')
         }
         const inputItem = new RegExp(lineRegex,'u').exec(line).groups
+        for (const [groupKey,groupValue] of Object.entries(inputItem)) {
+            if (groupValue === blankSeq) {
+                inputItem[groupKey] = '{SKIP_LOOKPUP}'
+            } else if (groupKey === 'english' || groupKey === 'pinyin' || groupKey === 'audio') {
+                inputItem[groupKey] = groupValue.split(valSep)
+            }
+        }
         input[deckName].push(inputItem)
     }
     return input

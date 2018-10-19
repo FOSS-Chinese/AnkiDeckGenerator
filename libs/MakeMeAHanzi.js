@@ -11,7 +11,7 @@ class MakeMeAHanzi {
         this.animatedSvgsDir = `${conf.sourcePath}/svgs`
         this.stillSvgsDir = `${conf.sourcePath}/svgs-still`
     }
-    getCharData(ids, by='char', generateAll=false) { // ids can be a single char or charCode or an array of many; 'by' can be 'char' or 'charCode'
+    getCharData(ids, by='char', generateAll=false, fieldMapping={definition:'english',character:'simplified'}) { // ids can be a single char or charCode or an array of many; 'by' can be 'char' or 'charCode'
         return new Promise((resolve,reject) => {
             ids = Array.isArray(ids) ? ids : [ids] // ensure array
             ids = (by==='char') ? ids : ids.map(charCode=>charCode.charCodeAt(0)) // convert ids to chars
@@ -29,6 +29,10 @@ class MakeMeAHanzi {
             lineReader.on('line', line => {
                 const charData = JSON.parse(line)
                 if (generateAll || ids.includes(charData.character)) {
+                    for (const [oldFieldName,newFieldName] of Object.entries(fieldMapping)) {
+                        charData[newFieldName] = charData[oldFieldName]
+                        delete charData[oldFieldName]
+                    }
                     charData.charCode = charData.character.charCodeAt()
                     charData.animatedSvg = `${this.animatedSvgsDir}/${charData.charCode}.svg`
                     charData.stillSvg = `${this.stillSvgsDir}/${charData.charCode}-still.svg`
