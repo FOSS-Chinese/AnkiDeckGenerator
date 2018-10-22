@@ -2,4 +2,4 @@ node_modules
 package-lock.json
 cache/*
 *.apkg
-package-lock.json
+anki-deck-generator-temp/
