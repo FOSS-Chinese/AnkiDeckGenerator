@@ -1,13 +1,13 @@
 'use strict'
 
-const mustache = require('mustache')
-
 class HanziDissector {
-    constructor(mmah) {
+    constructor(mmah,s2t,t2s) {
         this.mmah = mmah
+        this.s2t = s2t
+        this.t2s = t2s
     }
 
-    function getTextType(text) {
+    getTextType(text) {
         let type
         if (/[，？！。；,\?\!\.\;\s]/.test(text)) {
             type = 'sentence'
@@ -19,43 +19,43 @@ class HanziDissector {
         return type
     }
 
-    function groupInput(input) {
+    groupInput(input) {
         const groupedInput = {}
         for (const [deckName,deckItems] of Object.entries(input)) {
             groupedInput[deckName] = {chars:[],words:[],sentences:[]}
             for (const [i,deckItem] of deckItems.entries()) {
-                let type = getTextType(deckItem.simplified)
-                if (type === 'sentence') {
-                    groupedInput[deckName].sentence.push(deckItem)
-                } else if (type === 'word') {
-                    groupedInput[deckName].words.push(deckItem)
-                } else {
-                    groupedInput[deckName].chars.push(deckItem)
-                }
+                const type = this.getTextType(deckItem.simplified)
+                const prop = `${type}s`
+                groupedInput[deckName][prop].push(deckItem)
             }
         }
+        return groupedInput
     }
 
-    async function extractCmpsRecursively(char,chars,extractedChars) {
-        const charData = (await this.mmah.getCharData([char]))[char]
+    async extractCmpsRecursively(char,chars,extractedChars) {
+        const charData = (await this.mmah.getCharData(char.simplified))[char.simplified]
         if (charData.decomposition === '？')
             return
         const cmps = charData.decomposition.replace(/[\u2FF0-\u2FFB？]+/g,'').split('')
         for (const [i,cmp] of cmps.entries()) {
-            if (!chars.includes(cmp) && !extractedChars.includes(cmp)) {
-                extractedChars.push(cmp)
-                await this.extractCmpsRecursively(cmp,chars,extractedChars)
+            const alreadyInChars = chars.filter(c => (c.simplified === cmp)).length>0
+            const alreadyInExtractedChars = extractedChars.filter(c => (c.simplified === cmp)).length>0
+            if (!alreadyInChars && !alreadyInExtractedChars) {
+                extractedChars.push({simplified:cmp})
+                await this.extractCmpsRecursively({simplified:cmp},chars,extractedChars)
             }
         }
     }
 
-    async function dissect(input,dissect=true) {
+    async dissect(input,dissect=true) {
         const groupedInput = this.groupInput(input)
         groupedInput.allChars = []
         groupedInput.allWords = []
         groupedInput.allSentences = []
-
         for (const [deckName,groupedItems] of Object.entries(groupedInput)) {
+            if (['allChars','allWords','allSentences'].includes(deckName))
+                continue
+
             const sentences = groupedItems['sentences']
             const words = groupedItems['words']
             const chars = groupedItems['chars']
@@ -65,33 +65,48 @@ class HanziDissector {
             const extractedWords = groupedInput[deckName].extractedWords
 
             if (dissect) {
+                //console.log(sentences)
+                /*if (!sentences) {
+                    console.log(deckName)
+                    console.log(groupedItems)
+                }*/
                 for (const [i,sentence] of sentences.entries()) {
-                    for (let [j,word] of sentence.split(' ').entries()) {
+                    for (let [j,word] of sentence.simplified.split(' ').entries()) {
+                        word = word.replace(/[，？！。；,\?\!\.\;]/g,'')
+                        if (!words.includes(word) && !extractedWords.includes(word))
+                            extractedWords.push({simplified: word, traditional: await this.s2t.convertPromise(word)})
+                    }
+                    /*for (let [j,word] of sentence.traditional.split(' ').entries()) {
                         word = word.replace(/[，？！。；,\?\!\.\;]/g,'')
                         if (!words.includes(word) && !extractedWords.includes(word))
                             extractedWords.push(word)
-                    }
+                    }*/
                 }
 
-                for (const [i,word] of words.concat(ts.extractedWords).entries()) {
-                    for (const [j,char] of word.split('').entries()) {
+                for (const [i,word] of words.concat(extractedWords).entries()) {
+                    for (const [j,char] of word.simplified.split('').entries()) {
+                        if (!chars.includes(char) && !extractedChars.includes(char))
+                            extractedChars.push({simplified:char})
+                    }
+                    /*for (const [j,char] of word.traditional.split('').entries()) {
                         if (!chars.includes(char) && !extractedChars.includes(char))
                             extractedChars.push(char)
-                    }
+                    }*/
                 }
 
                 for (const [i,char] of chars.concat(extractedChars).entries()) {
                     await this.extractCmpsRecursively(char,chars,extractedChars)
+                    //await this.extractCmpsRecursively(char.traditional,chars,extractedChars)
                 }
             }
-            
+
             groupedInput[deckName].allChars = chars.concat(extractedChars)
             groupedInput.allChars = groupedInput.allChars.concat(groupedInput[deckName].allChars)
 
             groupedInput[deckName].allWords = words.concat(extractedWords)
             groupedInput.allWords = groupedInput.allWords.concat(groupedInput[deckName].allWords)
 
-            groupedInput[deckName].allSentences = sentences.concat(extractedSentences)
+            groupedInput[deckName].allSentences = sentences
             groupedInput.allSentences = groupedInput.allSentences.concat(groupedInput[deckName].allSentences)
         }
 

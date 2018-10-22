@@ -1,10 +1,10 @@
 'use strict'
 
-const TemplateHtml = require('./main/TemplateHtml')
+const TemplateHtml = require('./TemplateHtml')
 const templateHtml = new TemplateHtml()
 
 // Create sub decks, models and templates. One model per sub deck. One template per model.
-async function createSubdeckObjects(fields, baseDeckName, subDeckNames) {
+async function createSubdeckObjects(apkg, fields, baseDeck, subDeckNames) {
     const decks = []
     const models = []
     const templates = []
@@ -12,14 +12,14 @@ async function createSubdeckObjects(fields, baseDeckName, subDeckNames) {
 
     // Given subdecks get one subdeck per field
     for (let [i,subDeckName] of subDeckNames.entries()) {
-        const subDeckName = baseDeckName ? `${baseDeckName}::${subDeckName}` : subDeckName
+        subDeckName = baseDeck.name ? `${baseDeck.name}::${subDeckName}` : subDeckName
         for (const [i,field] of fields.entries()) {
             // Create a fields array where the first entry is the field of the current iteration
             const reorderedFields = JSON.parse(JSON.stringify(fields)).sort((x,y) => x.name === field.name ? -1 : y.name === field.name ? 1 : 0)
             const template = {
                 name: `${field.name}Template`,
                 qfmt: questionSkipTemplate,
-                afmt: await templateHtml.generateAnswerTemplate(reorderedFields)
+                afmt: await templateHtml.generateAnswerTemplate(reorderedFields, baseDeck)
             }
             templates.push(template)
 

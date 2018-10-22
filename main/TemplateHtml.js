@@ -1,13 +1,14 @@
 'use strict'
 
 const mustache = require('mustache')
+const fs = require('fs-extra')
 
 class TemplateHtml {
     constructor() {
         this.sectionCount = -1
     }
 
-    function generateCollapsablePanel(heading,content,center,showByDefault) {
+    generateCollapsablePanel(heading,content,center,showByDefault) {
         if (!heading)
             return ''
         this.sectionCount++
@@ -27,7 +28,7 @@ class TemplateHtml {
         `
     }
 
-    async function generateAnswerTemplate(fields) {
+    async generateAnswerTemplate(fields,baseDeck) {
         let collapsablePanels = ''
         for (let [i,field] of fields.entries()) {
             const content = field.html || `{{${field.name}}}`

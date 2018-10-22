@@ -32,7 +32,7 @@ class Mdbg {
     _lineToObj(line) {
         const result = this.lineRegex.exec(line).groups
         result.english = result.english.split('/')
-        result.pinyin = result.pinyin.split(' ').map(pinyin=>pinyinUtils.numberToMark(pinyin.replace(/u:/g,'ü'))).join(' ')
+        result.pinyin = result.pinyin.split(' ').map(pinyin=>pinyinUtils.numberToMark(pinyin.replace(/u:/g,'ü'))).join(' ').split(',')
         return result
     }
     async getEntryByHanzi(hanziArr,simplified=true,generateAll=false) {

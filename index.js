@@ -1,4 +1,4 @@
-bigDict#!/usr/bin/env node
+#!/usr/bin/env node
 'use strict'
 
 // External libs
@@ -21,6 +21,7 @@ const Mdbg = require('./libs/Mdbg')
 // Main code libs
 const createSubdeckObjects = require('./main/createSubdeckObjects')
 const HanziDissector = require('./main/HanziDissector')
+const parseInputFile = require('./main/parseInputFile')
 
 // Lib initialization
 const s2t = new OpenCC('s2t.json') // To convert simplified to traditional
@@ -69,7 +70,7 @@ async function autoGenerate(apkgFile, cmd) {
 
     const apkg = new AnkiPackage(cmd.deckName, cmd.tempFolder)
     const mmah = new MakeMeAHanzi({sourcePath: './submodules/makemeahanzi'})
-    const hanziDissector = new HanziDissector(mmah)
+    const hanziDissector = new HanziDissector(mmah,s2t,t2s)
 
     const fields = require('./main/fields.json')
 
@@ -89,7 +90,7 @@ async function autoGenerate(apkgFile, cmd) {
     const input = await parseInputFile(cmd.inputFile)
 
     // Create sub decks, models and templates. One model per sub deck. One template per model.
-    const subDeckObjs = createSubdeckObjects(fields,baseDeck.name,Object.keys(input))
+    const subDeckObjs = await createSubdeckObjects(apkg,fields,baseDeck,Object.keys(input))
     const decks = subDeckObjs.decks
     const models = subDeckObjs.models
     const templates = subDeckObjs.templates
@@ -107,12 +108,13 @@ async function autoGenerate(apkgFile, cmd) {
     }
 
     console.log(`Dissecting input data down to component level...`)
-    const dissectedInput = hanziDissector.dissect(input)
+    const dissectedInput = await hanziDissector.dissect(input)
     const allChars = dissectedInput.allChars
     const allWords = dissectedInput.allWords
+    const allSentences = dissectedInput.allSentences
 
     console.log(`Looking up ${cmd.bigDict ? 'all' : 'input'} chars for deck-internal dictionary...`)
-    const dict = await mmah.getCharData(allChars.map(char=>char.simplified),'char',cmd.bigDict)
+    const dict = await mmah.getCharData(allChars.map(char=>char.simplified),'char',cmd.bigDict) // TODO: FIX small dict
 
     for (const [char,charData] of Object.entries(dict)) { // Generate traditional hanzi for chars in dictionary
         dict[char].traditional = await s2t.convertPromise(char)
@@ -133,7 +135,12 @@ async function autoGenerate(apkgFile, cmd) {
         for (const [key,value] of Object.entries(hanziDataGroups)) {
             //if (value !== '{SKIP_LOOKPUP}') {
                 if (value !== '') {
-                    dict[hanziDataGroups.simplified][key] = value
+                    if (!dict[hanziDataGroups.simplified])
+                        dict[hanziDataGroups.simplified] = {}
+                    if (['english','pinyin'].includes(key))
+                        dict[hanziDataGroups.simplified][key] = Array.isArray(value) ? value : [value]
+                    else
+                        dict[hanziDataGroups.simplified][key] = value
                 }
             //}
         }
@@ -142,11 +149,11 @@ async function autoGenerate(apkgFile, cmd) {
     for (const [i,hanziDataGroups] of allInputHanzi.entries()) { // charDataGroups={simplified:'..',traditional:'..',engligh:'..',pinyin:'..',audio:'..'}
         const hanzi = hanziDataGroups.simplified
         if (!dict[hanzi].pinyin || !dict[hanzi].english) {
-            const type = hanziDissect.getTextType(hanzi)
+            const type = hanziDissector.getTextType(hanzi)
             let results = []
             try {
                 if (typeof archChineseCache[hanzi] === 'undefined') {
-                    results = type==='sentence' ? await archChinese.searchSentences(hanzi) : await archChinese.searchWords(word)
+                    results = type==='sentence' ? await archChinese.searchSentences(hanzi) : await archChinese.searchWords(hanzi)
                 } else {
                     results = archChineseCache[hanzi]
                 }
@@ -155,7 +162,7 @@ async function autoGenerate(apkgFile, cmd) {
                     continue
                 }
             } catch(e) {
-                if (e.error.syscall === 'getaddrinfo' && e.error.code === 'ENOTFOUND')
+                if (e.error && e.error.syscall === 'getaddrinfo' && e.error.code === 'ENOTFOUND')
                     console.warn(`DNS request failed. ArchChinese search for ${type} "${hanzi}" skipped.`)
                 else
                     throw e
@@ -172,6 +179,8 @@ async function autoGenerate(apkgFile, cmd) {
             }
             archChineseCache[sentence] = filteredResults
             const result = archChineseCache[hanzi][0]
+            dict[hanzi].pinyin = result.pinyin
+            dict[hanzi].english = result.english
         }
         if (!dict[hanzi].traditional) {
             dict[hanzi].traditional = await s2t.convertPromise(dict[hanzi].simplified)
@@ -181,32 +190,65 @@ async function autoGenerate(apkgFile, cmd) {
     // Add audio files
     for (const [i,hanziDataGroups] of allInputHanzi.entries()) {
         const hanzi = hanziDataGroups.simplified
+        if (dict[hanzi].audio === '{SKIP_LOOKPUP}')
+            continue
+
         if (dict[hanzi].audio && dict[hanzi].audio.length > 0 && dict[hanzi].audio[0] === '{SKIP_LOOKPUP}')
             continue
 
         if (dict[hanzi].audio && dict[hanzi].audio.length > 0) {
-            await apkg.addMedia(dict[hanzi].audio))
+            await apkg.addMedia(dict[hanzi].audio)
         } else { // TODO: implement switch to specify if forvo should still be hit even if audio was specified explicitly
             try {
                 const mediaToAdd = await forvo.downloadAudio('./cache/anki-audio-dl-cache',hanzi)
                 await apkg.addMedia(mediaToAdd)
                 dict[hanzi].audio = []
                 const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
-                dict[hanzi].audio = dict[hanzi].audio.concat(filenames)
+                dict[hanzi].audio = dict[hanzi].audio.concat(mediaToAdd)
             } catch(e) {
                 if (e.statusCode === 403)
                     console.warn(`Forvo blocked download of audio for "${hanzi}". Try again later.`)
                 else if (e.statusCode === 404)
                     console.warn(`Forvo audio download for "${hanzi}" returned a 404 Not Found.`)
-                else if (e.error.syscall === 'getaddrinfo' && e.error.code === 'ENOTFOUND')
+                else if (e.error && e.error.syscall === 'getaddrinfo' && e.error.code === 'ENOTFOUND')
                     console.warn(`DNS request failed. Forvo audio download for "${hanzi}" skipped.`)
                 else
                     throw e
             }
-            await apkg.addMedia(dict[hanzi].audio))
+            await apkg.addMedia(dict[hanzi].audio)
         }
     }
 
+    const deckNames = decks.map(d=>d.name)
+    for (const [i,deck] of decks.entries()) {
+        const subBaseDeck = deck.baseConf.name.slice(0,deck.baseConf.name.lastIndexOf('::'))
+        const vocab = dissectedInput[subBaseDeck].allChars.concat(dissectedInput[subBaseDeck].allWords).concat(dissectedInput[subBaseDeck].allSentences)
+        for (const [i, voc] of vocab.entries()) {
+            let itemData = dict[voc.simplified]
+            let fieldContentArr = []
+
+            fieldContentArr.push(itemData.simplified || '')
+            fieldContentArr.push(itemData.pinyin ? itemData.pinyin.join(' / ') : '')
+            fieldContentArr.push(itemData.english ? itemData.english.join('; ') : '')
+            fieldContentArr.push('')
+
+            const noteToAdd = {
+                mid: models[i],
+                flds: fieldContentArr.map(item=>item.replace(/'/g,"&#39;")),
+                sfld: fields[0].name
+            }
+            const note = await apkg.addNote(noteToAdd)
+            const cardToCreate = {
+                nid: note.id,
+                did: deck.baseConf.id,
+                odid: deck.baseConf.id,
+                ord: i%fields.length // template index
+            }
+            const card = await apkg.addCard(cardToCreate)
+        }
+    }
+
+/*
     /////////// Create notes+cards
     const notes = []
     let cardChars = chars
@@ -323,6 +365,7 @@ async function autoGenerate(apkgFile, cmd) {
         }
     }
 
+    */
     // Add base dict
     await fs.outputFile(`${cmd.tempFolder}/_dict-${baseDeck.baseConf.id}.jsonp`,`onLoadDict(${JSON.stringify(dict)})`)
     await apkg.addMedia(`${cmd.tempFolder}/_dict-${baseDeck.baseConf.id}.jsonp`)

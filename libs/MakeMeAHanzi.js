@@ -28,15 +28,18 @@ class MakeMeAHanzi {
             })
             lineReader.on('line', line => {
                 const charData = JSON.parse(line)
+
                 if (generateAll || ids.includes(charData.character)) {
+                    charData.charCode = charData.character.charCodeAt()
+                    charData.pinyin = charData.pinyin ? [charData.pinyin] : []
+                    charData.definition = charData.definition ? charData.definition.split(/\s?[;,]\s?/) : [] //TODO: consider only splitting by ;
+                    charData.animatedSvg = `${this.animatedSvgsDir}/${charData.charCode}.svg`
+                    charData.stillSvg = `${this.stillSvgsDir}/${charData.charCode}-still.svg`
+                    const id = (by==='char') ? charData.character : charData.charCode // index by char or by charCode
                     for (const [oldFieldName,newFieldName] of Object.entries(fieldMapping)) {
                         charData[newFieldName] = charData[oldFieldName]
                         delete charData[oldFieldName]
                     }
-                    charData.charCode = charData.character.charCodeAt()
-                    charData.animatedSvg = `${this.animatedSvgsDir}/${charData.charCode}.svg`
-                    charData.stillSvg = `${this.stillSvgsDir}/${charData.charCode}-still.svg`
-                    const id = (by==='char') ? charData.character : charData.charCode // index by char or by charCode
                     collectedData[id] = charData // TODO: is that a good idea? (input by charCode causes output by charCode)
                 }
             })

@@ -21,10 +21,10 @@ async function parseInputFile(inputFile) {
         if (line.startsWith('#!')) {
             if (line.includes('=')) {
                 const strippedLine = line.match(/^#!([^#$]+)(#|$)/)[1]
-                const cfgArr = line.split('=')
+                const cfgArr = strippedLine.split('=')
                 if (cfgArr.length >= 2) {
                     let key = cfgArr[0].trim().toLowerCase()
-                    let value = cfgArr[1].trim().toLowerCase()
+                    let value = cfgArr[1].trim()
                     value = value === "true" ? true : value
                     value = value === "false" ? false : value
                     value = value === "null" ? null : value
@@ -33,6 +33,8 @@ async function parseInputFile(inputFile) {
                 }
             }
             continue
+        } else if (line.startsWith('#')) {
+            continue
         } else if (!line || !line.trim()) {
             continue
         }
@@ -40,7 +42,7 @@ async function parseInputFile(inputFile) {
         const version = inputCfg['version']
         const deckName = inputCfg['deck']
         if (!input[deckName])
-            input[deckName] = {chars:[],words:[],sentences:[]}
+            input[deckName] = [] //{chars:[],words:[],sentences:[]}
         const format = inputCfg['format']
         let sep = inputCfg['separator']
         let valSep = inputCfg['value-separator']
@@ -61,7 +63,9 @@ async function parseInputFile(inputFile) {
             if (groupValue === blankSeq) {
                 inputItem[groupKey] = '{SKIP_LOOKPUP}'
             } else if (groupKey === 'english' || groupKey === 'pinyin' || groupKey === 'audio') {
-                inputItem[groupKey] = groupValue.split(valSep)
+                inputItem[groupKey] = groupValue.split(valSep).filter(item=>item!=='')
+            } else {
+                inputItem[groupKey] = groupValue
             }
         }
         input[deckName].push(inputItem)
