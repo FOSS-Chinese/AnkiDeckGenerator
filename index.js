@@ -367,16 +367,23 @@ async function autoGenerate(apkgFile, cmd) {
 
     */
     // Add base dict
+
+    const smallDict = {}
+    for (const [hanzi, item] of Object.entries(dict)) {
+        if (allInputHanzi.filter(item=>item.simplified===hanzi).length>0)
+            smallDict[hanzi] = item
+    }
+    console.log(smallDict)
     await fs.outputFile(`${cmd.tempFolder}/_dict-${baseDeck.baseConf.id}.jsonp`,`onLoadDict(${JSON.stringify(dict)})`)
     await apkg.addMedia(`${cmd.tempFolder}/_dict-${baseDeck.baseConf.id}.jsonp`)
     await fs.remove(`${cmd.tempFolder}/_dict-${baseDeck.baseConf.id}.jsonp`)
 
     // Add all stroke order diagrams
-    console.log("Generating big char dict...")
-    dict = await mmah.getCharData(allChars,'char',true)
-    for (const [char,charData] of Object.entries(dict)) {
-        dict[char].traditional = await s2t.convertPromise(char)
-    }
+    //console.log("Generating big char dict...")
+    //dict = await mmah.getCharData(allChars,'char',true)
+    //for (const [char,charData] of Object.entries(dict)) {
+    //    dict[char].traditional = await s2t.convertPromise(char)
+    //}
     const mediaToAdd = []
     let i = 0
     for (const [char,charData] of Object.entries(dict)) {
