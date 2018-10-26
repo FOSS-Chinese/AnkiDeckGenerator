@@ -14,7 +14,7 @@ cardId = apkg.addCard(config, notesId, deckId, fields, templateIndexNumber, orig
 */
 
 class AnkiPackage {
-    constructor(apkgFile, tempDir='./anki-deck-generator-temp') {
+    constructor(apkgFile, tempDir='./apkg-temp') {
         this.tempDir = tempDir
         this.apkgFile = apkgFile || './new-deck.apkg'
         this.deckFile = `${this.tempDir}/collection.anki2`

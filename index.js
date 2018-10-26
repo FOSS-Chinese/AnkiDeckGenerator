@@ -35,7 +35,8 @@ let archchineseCacheFile = './cache/archchinese-cache.json' // TODO: consider pa
 
 program
     .command('auto-generate <apkg-output-file>')
-    .option('-c, --input-file [file-path]', 'File containing a json-array of Chinese characters, words and/or sentences')
+    .option('-i, --input-file [file-path]', 'File containing a json-array of Chinese characters, words and/or sentences')
+    .option('-c, --clear-apkg-temp [boolean]', 'Automatically clear the apkg temp folder after creating the apkg')
     .option('-n, --deck-name <string>', 'Name of the deck to be created')
     .option('-d, --deck-description <string>', 'Name of the deck to be created')
     .option('-t, --temp-folder [folder-path]', 'Folder to be used/created for temporary files')
@@ -54,7 +55,7 @@ program
 program.parse(process.argv)
 
 async function autoGenerate(apkgFile, cmd) {
-    cmd.tempFolder = cmd.tempFolder || './anki-deck-generator-temp'
+    cmd.tempFolder = cmd.tempFolder || './apkg-temp'
     cmd.deckName = cmd.deckName || "NewDeck"
     cmd.deckDescription = cmd.deckDescription || "A new deck"
     cmd.libs = cmd.libs || './template-libs'
@@ -420,7 +421,8 @@ async function autoGenerate(apkgFile, cmd) {
     })
     progressBar.stop()
     await fs.writeFile(apkgFile, content)
-    await fs.remove(cmd.tempFolder)
+    if (cmd.clearApkgTemp)
+        await fs.remove(cmd.tempFolder)
     await fs.outputJson(archchineseCacheFile,archChineseCache)
     return `Successfully generated ${apkgFile}!`
 }
