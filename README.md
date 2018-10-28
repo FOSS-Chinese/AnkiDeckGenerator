@@ -66,6 +66,7 @@ Or just run `npm run example`.
 
 ## Input file options:
 Options start with `#!`. Comments start with only a `#`.
+Comments can be anywhere in the file and the deck option can be used multiple times to create more than 1 subdeck.
 ```
 #! version = 1 # Is always 1 for now
 #! use-online-services = true # Not implemented yet
@@ -100,4 +101,4 @@ Options start with `#!`. Comments start with only a `#`.
 
 # Donate
 
-[![donate-button](https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif)]https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=49DY4XCAQWG84)
+[![donate-button](https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=49DY4XCAQWG84)
