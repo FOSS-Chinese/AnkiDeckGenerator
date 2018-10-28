@@ -1,13 +1,17 @@
 # AnkiDeckGenerator
 
 Convert a list of Chinese characters/words/sentences and/or English words/sentences into an extremely powerful Anki Deck Package (apkg).
-Note: This project is still in beta at the moment. 
+Note: This project is still in beta at the moment.
 
 # Screenshots
 ![gif-video](screenshots/screen-recording.gif)
 
-
 ## TODO
+- [x] Make some changes to pepebecker's pinyin-split project so we can use it in the templates to properly split multi-syllable hanzi words.
+- [ ] Transpile pinyin-split to ES5 and add it to the templates
+- [x] Create a Stroke order diagram generator that outputs still images with numbers
+- [x] and create a Pull Request at https://github.com/skishore/makemeahanzi adding this generator script and the generated stroke diagrams
+- [ ] Create another Pull Request for makemeahanzi with the latest generator script changes.
 - [ ] Make popup work on Windows
 - [x] Make popup work on Linux
 - [x] Make popup work on Android
@@ -30,8 +34,6 @@ Note: This project is still in beta at the moment.
 - [x] Generate Anki card data for the semantic/phonetic Hanzi etymology in case of pictophonetic
 - [x] Generate Anki card data for the primary radical of the Hanzi
 - [x] Generate Anki card data for the charCode as used in JavaScript
-- [x] Create a Stroke order diagram generator that outputs still images with numbers
-- [x] and create a Pull Request at https://github.com/skishore/makemeahanzi adding this generator script and the generated stroke diagrams
 - [x] Generate Anki card data for the charCode as used in JavaScript
 - [x] Copy the Hanzi stroke order diagrams into the deck output
 - [x] Write a bootstrap based Anki card template that uses all the features mentioned above
@@ -82,3 +84,6 @@ Or just run `npm run example`.
     -p, --dictionary-priority-list [comma-separated-string]  List of dictionaries (offline and online) to gather data from. (highest priority first. Default: makemeahanzi,mdbg,forvo,archchinese)
     -h, --help                                               output usage information                         output usage information
 ```
+
+# Donate
+![https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=49DY4XCAQWG84)
