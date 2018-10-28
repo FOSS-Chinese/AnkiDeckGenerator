@@ -1,9 +1,11 @@
 # AnkiDeckGenerator
 
 Convert a list of Chinese characters/words/sentences and/or English words/sentences into an extremely powerful Anki Deck Package (apkg).
+Note: This project is still in beta at the moment. 
 
 # Screenshots
 ![gif-video](screenshots/screen-recording.gif)
+
 
 ## TODO
 - [ ] Make popup work on Windows
