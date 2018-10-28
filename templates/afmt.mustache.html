@@ -188,8 +188,8 @@
                         popupContent += generatePanel('Chinese Audio', '<div class="chinese-audio">' + getAudioButtons(hanzi) + '</div>', true, true);
                     }
 
-                    if (dict[hanzi].definition) {
-                        popupContent += generatePanel('English', '<span class="english">' + dict[hanzi].definition + '</span>', true, true);
+                    if (dict[hanzi].english) {
+                        popupContent += generatePanel('English', '<span class="english">' + dict[hanzi].english + '</span>', true, true);
                     }
 
                     if (dict[hanzi].decomposition && dict[hanzi].decomposition !== '？') {

@@ -34,7 +34,8 @@ class ArchChinese {
             },
             resolveWithFullResponse: true
         })
-        console.log(res)
+        //TODO: debug why ArchChinese returns an empty body when requesting sentences
+        /*console.log(res)
         console.log(res.headers)
         console.log(res.body)
         console.log(res.statusCode)
@@ -43,10 +44,10 @@ class ArchChinese {
             limit:limit.toString(),
             offset:offset.toString(),
             unicode: query.replace(/[，？！。；,\?\!\.\;\s]/g,'').split('').map(l=>l.charCodeAt().toString(16).toUpperCase()).join(', ')
-        })
+        })*/
         await sleep(this.sleepAfterSearch)
         // 你好@你好@ni3 hao3@hello,hi,how are you?@9@短@N@[]@1276&你好吗@你好嗎@ni3 hao3 ma5@How are you?, How are you doing?@9@短@N@[]@6&
-        return body
+        return res.body
     }
 
     /**

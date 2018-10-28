@@ -41,8 +41,9 @@ class HanziDissector {
             const alreadyInChars = chars.filter(c => (c.simplified === cmp)).length>0
             const alreadyInExtractedChars = extractedChars.filter(c => (c.simplified === cmp)).length>0
             if (!alreadyInChars && !alreadyInExtractedChars) {
-                extractedChars.push({simplified:cmp})
-                await this.extractCmpsRecursively({simplified:cmp},chars,extractedChars)
+                const cmpToPush = {simplified:cmp, traditional: await this.s2t.convertPromise(cmp),pinyin:[],english:[],audio:[]}
+                extractedChars.push(cmpToPush)
+                await this.extractCmpsRecursively(cmpToPush,chars,extractedChars)
             }
         }
     }
@@ -75,7 +76,7 @@ class HanziDissector {
                     for (let [j,word] of sentence.simplified.split(' ').entries()) {
                         word = word.replace(/[，？！。；,\?\!\.\;]/g,'')
                         if (!words.includes(word) && !extractedWords.includes(word))
-                            extractedWords.push({simplified: word, traditional: await this.s2t.convertPromise(word)})
+                            extractedWords.push({simplified: word, traditional: await this.s2t.convertPromise(word),pinyin:[],english:[],audio:[]})
                     }
                     /*for (let [j,word] of sentence.traditional.split(' ').entries()) {
                         word = word.replace(/[，？！。；,\?\!\.\;]/g,'')
@@ -87,7 +88,7 @@ class HanziDissector {
                 for (const [i,word] of words.concat(extractedWords).entries()) {
                     for (const [j,char] of word.simplified.split('').entries()) {
                         if (!chars.includes(char) && !extractedChars.includes(char))
-                            extractedChars.push({simplified:char})
+                            extractedChars.push({simplified:char, traditional: await this.s2t.convertPromise(char),pinyin:[],english:[],audio:[]})
                     }
                     /*for (const [j,char] of word.traditional.split('').entries()) {
                         if (!chars.includes(char) && !extractedChars.includes(char))

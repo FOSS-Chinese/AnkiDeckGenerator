@@ -61,7 +61,8 @@ async function autoGenerate(apkgFile, cmd) {
     cmd.deckDescription = cmd.deckDescription || "A new deck"
     cmd.libs = cmd.libs || './template-libs'
 
-    cmd.bigDict = cmd.bigDict===false ? false : true
+    cmd.bigDict = true // TODO: undo
+    //cmd.bigDict = cmd.bigDict===true ? true : false
     cmd.recursiveMedia = cmd.recursiveMedia===false ? false : true
     cmd.recursiveCards = cmd.recursiveCards===true ? true : false
 
@@ -120,9 +121,9 @@ async function autoGenerate(apkgFile, cmd) {
     const decks = subDeckObjs.decks
     const models = subDeckObjs.models
 
-        for (const deck of decks) {
-            console.log('Created',deck.baseConf.name)
-        }
+    for (const deck of decks) {
+        console.log('Created',deck.baseConf.name)
+    }
 
     // Fill missing input hanzi
     for (const [deckName,inputForDeck] of Object.entries(input)) {
@@ -139,7 +140,8 @@ async function autoGenerate(apkgFile, cmd) {
     console.log(`Dissecting input data down to component level...`) // TODO: cache
     progressBar.start(100,0)
     let lastDissectPercent = -1
-    const dissectedInput = await hanziDissector.dissect(input, true, (progress)=>{
+    const dissectToCmpLvl = true //TODO: make this a param
+    const dissectedInput = await hanziDissector.dissect(input, dissectToCmpLvl, (progress)=>{
         if (progress !== lastDissectPercent) {
             progressBar.update(progress)
             lastDissectPercent = progress

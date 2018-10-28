@@ -1,13 +1,19 @@
 # AnkiDeckGenerator
 
-Convert a list of Chinese characters/words/sentences or English words/sentences into an extremely powerful Anki Deck Package (apkg).
+Convert a list of Chinese characters/words/sentences and/or English words/sentences into an extremely powerful Anki Deck Package (apkg).
+
+# Screenshots
+![gif-video](screenshots/screen-recording.gif)
 
 ## TODO
+- [ ] Make popup work on Windows
+- [x] Make popup work on Linux
+- [x] Make popup work on Android
 - [x] Accept individual Chinese characters as input
 - [x] Accept Chinese words consisting of multiple characters as input
 - [x] Accept Chinese sentences consisting of multiple character as input
-- [ ] Accept English words as input
-- [ ] Accept English sentences as input
+- [x] Create a highly dynamic and configurable input file format
+- [ ] Fill missing data (hanzi, pinyin, audio) when only specifying English words/sentences as input
 - [x] Generate Anki card data for the Hanzi
 - [x] Generate Anki card data for the English translation
 - [x] Generate Anki card data for example words that contain a given cards Hanzi
