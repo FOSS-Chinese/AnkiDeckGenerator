@@ -64,6 +64,19 @@ node index.js auto-generate -i example-input.txt -n ExampleDeck -d MyDeckDescrip
 ```
 Or just run `npm run example`.
 
+## Input file options:
+Options start with `#!`. Comments start with only a `#`.
+```
+#! version = 1 # Is always 1 for now
+#! use-online-services = true # Not implemented yet
+#! leave-blank-sequence = {SKIP_LOOKPUP} # can be used to skip media downloads etc
+#! separator = | # sepatator for vocab input and for the format:
+#! format = simplified|traditional|pinyin|english|audio # format which has to be used for the input vocab (you can leave everything empty, but simplified)
+#! value-separator = ; # Use as a separator when there are multiple definitions or pinyins
+
+#! deck = CurrentDeckName # Change the deckname for the following input vocab (can be used as many times as you want)
+```
+
 ## Usage
 (Note: Some of these options have not been tested yet.)
 ```
@@ -86,4 +99,5 @@ Or just run `npm run example`.
 ```
 
 # Donate
-![https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=49DY4XCAQWG84)
+
+[![donate-button](https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif)]https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=49DY4XCAQWG84)
