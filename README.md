@@ -53,20 +53,30 @@ node generateStillSvgs.js
 ```
 
 ## Example Usage
+Create an input file. (Take the [example-input.txt](example-input.txt) as an example.)
+Then run the following command:
 ```
-node index.js auto-generate MyNewDeck.apkg -c example-input.txt -n MyNewDeck -d MyDeckDescription
+node index.js auto-generate -i example-input.txt -n ExampleDeck -d MyDeckDescription ExampleDeck.apkg
 ```
 Or just run `npm run example`.
 
 ## Usage
+(Note: Some of these options have not been tested yet.)
 ```
-Usage: index [options]
+  Usage: node ./index.js auto-generate [options] <apkg-output-file>
 
-Options:
+  Options:
 
-  -V, --version                         output the version number
-  -c, --input-file-chinese <file-path>  File containing a json-array of Chinese characters, words and/or sentences
-  -o, --output-folder <folder-path>     Folder in which the deck files will be written
-
-  -h, --help                            output usage information
+    -i, --input-file [file-path]                             File containing a json-array of Chinese characters, words and/or sentences.
+    -c, --clear-apkg-temp [boolean]                          Automatically clear the apkg temp folder after creating the apkg. Default: true
+    -n, --deck-name <string>                                 Name of the deck to be created
+    -d, --deck-description <string>                          Description of the deck to be created
+    -t, --temp-folder [folder-path]                          Folder to be used/created for temporary files
+    -l, --libs-folder [folder-path]                          Folder holding libraries for template
+    -a, --audio-recordings-limit [integer]                   Max amount of audio recordings to download for each character, word and sentence. (-1: all, 0: none, 1: one, 2: two) Default: 1
+    -r, --big-dict [boolean]                                 Include all hanzi chars in the deck-internal dictionary. (Use only if you want to add cards later on without the generator.) Default: false
+    -r, --recursive-media [boolean]                          Download media not only for input file entries, but also for every single word, character and component found in each entry. Default: true
+    -r, --recursive-cards [boolean]                          Add cards not only for input file entries, but also for every single word, character and component found in each entry. Default: false
+    -p, --dictionary-priority-list [comma-separated-string]  List of dictionaries (offline and online) to gather data from. (highest priority first. Default: makemeahanzi,mdbg,forvo,archchinese)
+    -h, --help                                               output usage information                         output usage information
 ```

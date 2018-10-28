@@ -39,7 +39,7 @@ program
     .option('-i, --input-file [file-path]', 'File containing a json-array of Chinese characters, words and/or sentences.')
     .option('-c, --clear-apkg-temp [boolean]', 'Automatically clear the apkg temp folder after creating the apkg. Default: true')
     .option('-n, --deck-name <string>', 'Name of the deck to be created')
-    .option('-d, --deck-description <string>', 'Name of the deck to be created')
+    .option('-d, --deck-description <string>', 'Description of the deck to be created')
     .option('-t, --temp-folder [folder-path]', 'Folder to be used/created for temporary files')
     .option('-l, --libs-folder [folder-path]', 'Folder holding libraries for template')
     .option('-a, --audio-recordings-limit [integer]', 'Max amount of audio recordings to download for each character, word and sentence. (-1: all, 0: none, 1: one, 2: two) Default: 1')
