@@ -35,8 +35,8 @@ let archchineseCacheFile = './cache/archchinese-cache.json' // TODO: consider pa
 
 program
     .command('auto-generate <apkg-output-file>')
-    .option('-i, --input-file [file-path]', 'File containing a json-array of Chinese characters, words and/or sentences')
-    .option('-c, --clear-apkg-temp [boolean]', 'Automatically clear the apkg temp folder after creating the apkg')
+    .option('-i, --input-file [file-path]', 'File containing a json-array of Chinese characters, words and/or sentences.')
+    .option('-c, --clear-apkg-temp [boolean]', 'Automatically clear the apkg temp folder after creating the apkg. Default: true')
     .option('-n, --deck-name <string>', 'Name of the deck to be created')
     .option('-d, --deck-description <string>', 'Name of the deck to be created')
     .option('-t, --temp-folder [folder-path]', 'Folder to be used/created for temporary files')
@@ -64,6 +64,8 @@ async function autoGenerate(apkgFile, cmd) {
     cmd.recursiveMedia = cmd.recursiveMedia===false ? false : true
     cmd.recursiveCards = cmd.recursiveCards===true ? true : false
 
+    cmd.clearApkgTemp = cmd.clearApkgTemp===false ? false : true
+
     await fs.remove(apkgFile)
 
     forvo.init()
@@ -87,14 +89,39 @@ async function autoGenerate(apkgFile, cmd) {
         name: cmd.deckName,
         desc: cmd.deckDescription
     })
+    console.log('Created',cmd.deckName)
 
-    const input = await parseInputFile(cmd.inputFile)
+    const input = await parseInputFile(cmd.inputFile,baseDeck)
+    const inputDeckNames = Object.keys(input)
+    const decksToCreate = []
+    async function findSuperDecks(deckName) {
+        if (deckName.includes('::')) {
+            if (!decksToCreate.includes(deckName) && deckName !== cmd.deckName) {
+                const superDeckName = deckName.slice(0,deckName.lastIndexOf('::'))
+                await findSuperDecks(superDeckName)
+                decksToCreate.push(deckName)
+            }
+        }
+    }
+    for (const deckName of inputDeckNames) {
+        await findSuperDecks(deckName)
+    }
+    for (const deckName of decksToCreate) {
+        await apkg.addDeck({
+            name: deckName,
+            desc: null
+        })
+        console.log('Created',deckName)
+    }
 
     // Create sub decks, models and templates. One model per sub deck. One template per model.
     const subDeckObjs = await createSubdeckObjects(apkg,fields,baseDeck,Object.keys(input))
     const decks = subDeckObjs.decks
     const models = subDeckObjs.models
-    const templates = subDeckObjs.templates
+
+        for (const deck of decks) {
+            console.log('Created',deck.baseConf.name)
+        }
 
     // Fill missing input hanzi
     for (const [deckName,inputForDeck] of Object.entries(input)) {
@@ -220,30 +247,34 @@ async function autoGenerate(apkgFile, cmd) {
         }
     }
 
-    const deckNames = decks.map(d=>d.name)
+    const deckNames = decks.map(d=>d.baseConf.name)
     for (const [i,deck] of decks.entries()) {
         const subBaseDeck = deck.baseConf.name.slice(0,deck.baseConf.name.lastIndexOf('::'))
-        const vocab = dissectedInput[subBaseDeck].allChars.concat(dissectedInput[subBaseDeck].allWords).concat(dissectedInput[subBaseDeck].allSentences)
-        for (const [i, voc] of vocab.entries()) {
+        //console.log(subBaseDeck)
+        //console.log(deckNames)
+        //console.log(Object.keys(input))
+        const vocab = !cmd.recursiveCards ? input[subBaseDeck] : dissectedInput[subBaseDeck].allChars.concat(dissectedInput[subBaseDeck].allWords).concat(dissectedInput[subBaseDeck].allSentences)
+        for (const [j, voc] of vocab.entries()) {
             let itemData = dict[voc.simplified]
             let fieldContentArr = []
-
             fieldContentArr.push(itemData.simplified || '')
             fieldContentArr.push(itemData.pinyin ? itemData.pinyin.join(' / ') : '')
             fieldContentArr.push(itemData.english ? itemData.english.join('; ') : '')
-            fieldContentArr.push('')
+            //fieldContentArr.push('')
 
             const noteToAdd = {
-                mid: models[i],
+                mid: models[i].id,
                 flds: fieldContentArr.map(item=>item.replace(/'/g,"&#39;")),
                 sfld: fields[0].name
             }
             const note = await apkg.addNote(noteToAdd)
+
             const cardToCreate = {
                 nid: note.id,
                 did: deck.baseConf.id,
                 odid: deck.baseConf.id,
-                ord: i%fields.length // template index
+                ord: 0, //i%fieldContentArr.length // template index
+                //ord: i%fields.filter(field=>!field.skipField).length // template index
             }
             const card = await apkg.addCard(cardToCreate)
         }
@@ -374,7 +405,6 @@ async function autoGenerate(apkgFile, cmd) {
         if (allInputHanzi.filter(item=>item.simplified===hanzi).length>0)
             smallDict[hanzi] = item
     }
-    console.log(smallDict)
     await fs.outputFile(`${cmd.tempFolder}/_dict-${baseDeck.baseConf.id}.jsonp`,`onLoadDict(${JSON.stringify(dict)})`)
     await apkg.addMedia(`${cmd.tempFolder}/_dict-${baseDeck.baseConf.id}.jsonp`)
     await fs.remove(`${cmd.tempFolder}/_dict-${baseDeck.baseConf.id}.jsonp`)

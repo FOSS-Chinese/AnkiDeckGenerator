@@ -21,8 +21,12 @@
   "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "example": "node index.js auto-generate ExampleDeck.apkg -c example-input.txt -n ExampleDeck -d MyDeckDescription",
-    "anki": "anki \"$(pwd)/ExampleDeck.apkg\""
+    "example": "node index.js auto-generate ExampleDeck.apkg -i example-input.txt -n ExampleDeck -d MyDeckDescription",
+    "anki": "anki \"$(pwd)/ExampleDeck.apkg\"",
+    "db-inspect": "sqliteman ./apkg-temp/collection.anki2",
+    "dump-models": "sqlite3 ./apkg-temp/collection.anki2 'SELECT models FROM col' | python -m json.tool",
+    "dump-decks": "sqlite3 ./apkg-temp/collection.anki2 'SELECT decks FROM col' | python -m json.tool",
+    "dump-dconf": "sqlite3 ./apkg-temp/collection.anki2 'SELECT dconf FROM col' | python -m json.tool"
   },
   "repository": {
     "type": "git",

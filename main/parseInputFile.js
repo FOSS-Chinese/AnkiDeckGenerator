@@ -2,14 +2,16 @@
 
 const fs = require('fs-extra')
 
-async function parseInputFile(inputFile) {
+async function parseInputFile(inputFile,baseDeck) {
+    const baseDeckName = baseDeck.baseConf.name
     const inputCfg = { // Defaults
         "version": 1,
         "use-online-services": true,
         "format": "simplified|traditional|pinyin|english|audio",
         "leave-blank-sequence": "{SKIP_LOOKPUP}",
         "separator": "|",
-        "value-separator": ";"
+        "value-separator": ";",
+        "deck": ""
     }
 
     const inputRaw = await fs.readFile(inputFile,'utf8')
@@ -40,7 +42,15 @@ async function parseInputFile(inputFile) {
         }
         //const lang = line.match(/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/) !== null ? 'cn' : 'en'
         const version = inputCfg['version']
-        const deckName = inputCfg['deck']
+        const deckNameSuffix = inputCfg['deck']
+        let deckName
+        if (baseDeckName && deckNameSuffix)
+            deckName = `${baseDeckName}::${deckNameSuffix}`
+        else if (baseDeckName)
+            deckName = baseDeckName
+        else if (baseDeckName)
+            deckName = deckNameSuffix
+
         if (!input[deckName])
             input[deckName] = [] //{chars:[],words:[],sentences:[]}
         const format = inputCfg['format']

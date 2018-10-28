@@ -19,6 +19,7 @@ class AnkiPackage {
         this.apkgFile = apkgFile || './new-deck.apkg'
         this.deckFile = `${this.tempDir}/collection.anki2`
         this.mediaFile = `${this.tempDir}/media`
+        this.idAdd = 0
     }
     init() {
         return new Promise((resolve,reject) => {
@@ -213,9 +214,10 @@ class AnkiPackage {
                 const decks = {}
                 const dconf = {}
                 const tags = {}
-                const crt = Math.round(Date.now()/1000)
-                const mod = Date.now()
-                const scm = Date.now()
+                const now = Date.now()+(this.idAdd++)
+                const crt = Math.round(now/1000)
+                const mod = now
+                const scm = now
                 const collectionSetupSql = `
                     INSERT INTO col VALUES(
                         1,                            /* id */
@@ -240,6 +242,7 @@ class AnkiPackage {
 
     addDeck(baseConf={}, advancedConf={}) {
         const id = Math.floor(Math.random() * 10000000000000)
+        const now = Date.now()+(this.idAdd++)
         baseConf = _.merge({ // dconf entry
             name: "Default",         // recommendation: overwrite (REQUIRED) [name of deck]
             desc: "",                // recommendation: overwrite (optional) [OPTIONAL deck description]
@@ -255,7 +258,7 @@ class AnkiPackage {
             usn: 0,                  // recommendation: leave as is          [usn: Update sequence number: used in same way as other usn vales in db]
             conf: id,                // recommendation: leave as is          [id of option group from dconf in `col` table]
             id: id,                  // recommendation: leave as is          [deck ID (automatically generated long)]
-            mod: Date.now()          // recommendation: leave as is          [last modification time]
+            mod: now          // recommendation: leave as is          [last modification time]
         }, baseConf)
         advancedConf = _.merge({//
             autoplay: false,          // whether the audio associated to a question should be played when the question is shown
@@ -313,7 +316,7 @@ class AnkiPackage {
     }
 
     addModel(model={}) {
-        const timestampNow = Math.round(Date.now()/1000)
+        const timestampNow = Math.round(Date.now()/1000)+(this.idAdd++)
         const id = Math.round(10000000000*Math.random())
 
         for (let [i,fld] of model.flds.entries()) {
@@ -411,7 +414,7 @@ class AnkiPackage {
 
     addNote(noteCfg={}) {
         return new Promise((resolve, reject) => {
-            const timestampNow = Math.round(Date.now()/1000)
+            const timestampNow = Math.round(Date.now()/1000)+(this.idAdd++)
             const id = Math.round(100000000000000*Math.random())
             const guid = crypto.randomBytes(16).toString("hex")
             const defaultNoteCfg = {
@@ -431,7 +434,7 @@ class AnkiPackage {
 
             noteCfg.sfld = (!noteCfg.sfld && noteCfg.flds.length>0) ? noteCfg.sfld=noteCfg.flds[0] : noteCfg.sfld
             noteCfg.csum = parseInt('0x'+crypto.createHash('sha1').update(noteCfg.flds.length>0 ? noteCfg.flds[0] : '').digest('hex').substring(0,8))
-
+            
             this.ankiDb.exec(`
                 INSERT INTO notes
                 VALUES(
@@ -453,7 +456,7 @@ class AnkiPackage {
 
     addCard(conf={}) {
         return new Promise((resolve, reject) => {
-            const timestampNow = Math.round(Date.now()/1000)
+            const timestampNow = Math.round(Date.now()/1000)+(this.idAdd++)
             const id = Math.floor(Math.random() * 10000000000000)
             conf = _.merge({ // dconf entry
                 nid: 0,            // recommendation: overwrite (REQUIRED)         [notes id]
