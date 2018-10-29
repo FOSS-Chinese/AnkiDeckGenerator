@@ -47,15 +47,16 @@ class HanziDissector {
         }
     }
 
-    async dissect(input,dissect=true) {
+    async dissect(input,dissect=true,progressCb) {
         const groupedInput = this.groupInput(input)
         groupedInput.allChars = []
         groupedInput.allWords = []
         groupedInput.allSentences = []
+        const deckCount = Object.keys(groupedInput).filter(k=>!['allChars','allWords','allSentences'].includes(k)).length
+        let deckIndex = 0
         for (const [deckName,groupedItems] of Object.entries(groupedInput)) {
             if (['allChars','allWords','allSentences'].includes(deckName))
                 continue
-
             const sentences = groupedItems['sentences']
             const words = groupedItems['words']
             const chars = groupedItems['chars']
@@ -108,6 +109,8 @@ class HanziDissector {
 
             groupedInput[deckName].allSentences = sentences
             groupedInput.allSentences = groupedInput.allSentences.concat(groupedInput[deckName].allSentences)
+
+            progressCb(Math.round((++deckIndex/deckCount)*100))
         }
 
         return groupedInput

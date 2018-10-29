@@ -6,47 +6,47 @@
 #! value-separator = ;
 
 #! deck = Unit 1::Vocab
-#对不起
-#英文
+对不起
+英文
 会
-#说
-#你
-#不
-#吗
-#请问
-#我
-#普通话
-#一点儿
-#美国
-#人
-#是
+说
+你
+不
+吗
+请问
+我
+普通话
+一点儿
+美国
+人
+是
 
 #! deck = Unit 1::Example Sentences
-你 会 说 英文 吗？|你 會 說 英文 嗎?|Nî huì shuō Yīngwén ma?|Do you speak English?|{SKIP_LOOKPUP}
-#不会。|不會。|Bú huì.|No.|{SKIP_LOOKPUP}
-#我 不 会 说 英文。|我 不 會 說 英文。|Wô bú huì shuō Yīngwén.|I don't speak English.|{SKIP_LOOKPUP}
-#我 会 说 一点儿 普通话。|我 會 說 一點兒 普通話。|Wô hùi shuō yìdiânr pûtōnghuà.|I can speak a little Mandarin.|{SKIP_LOOKPUP}
-#你 是 美国 人 吗？|你 是 美國 人 嗎?|Nî shì Mêiguó rén ma?|Are you American?|{SKIP_LOOKPUP}
-#我 是 美国 人。|我是美國人。|Wô shì Mêiguó rén.|I am American.|{SKIP_LOOKPUP}
-#我 是 德国 人。|我是美國人。|Wô shì Dé​guó rén.|I am American.|{SKIP_LOOKPUP}
-#
-#
+你 会 说 英文 吗？|你 會 說 英文 嗎?|Nî huì shuō Yīngwén ma?|Do you speak English?|
+不会。|不會。|Bú huì.|No.|
+我 不 会 说 英文。|我 不 會 說 英文。|Wô bú huì shuō Yīngwén.|I don't speak English.|
+我 会 说 一点儿 普通话。|我 會 說 一點兒 普通話。|Wô hùi shuō yìdiânr pûtōnghuà.|I can speak a little Mandarin.|
+你 是 美国 人 吗？|你 是 美國 人 嗎?|Nî shì Mêiguó rén ma?|Are you American?|
+我 是 美国 人。|我是美國人。|Wô shì Mêiguó rén.|I am American.|
+我 是 德国 人。|我是美國人。|Wô shì Dé​guó rén.|I am German.|
+
+
 #! deck = Unit 2::Vocab
 好
-#的
-#你好。
-#你好 吗？
-#谢谢
-#很
-#再见
-#
+的
+你好。
+你好 吗？
+谢谢
+很
+再见
+
 #! deck = Unit 2::Example Sentences
-我 会 说 一点儿。|我 會 說 一點兒。|Wô huì shuō yìdiânr.|I can speak a little.|{SKIP_LOOKPUP}
-#我 不 会 说 英文。|我 不 會 說 英文。|Wô bú huì shuō Yīngwén.|I don't speak English.|{SKIP_LOOKPUP}
-#你 说 的 很 好。|你 說 的 很 好。|Nî shuō de hên hâo.|You speak very well.|{SKIP_LOOKPUP}
-#我 说 的 不 好。|我 說 的 不 好。|Wô shuō de bù hâo.|I don't speak well.|{SKIP_LOOKPUP}
-#谢谢 你。|謝謝 你。|Xièxie nî.|Thank you.|{SKIP_LOOKPUP}
-#
+我 会 说 一点儿。|我 會 說 一點兒。|Wô huì shuō yìdiânr.|I can speak a little.|
+我 不 会 说 英文。|我 不 會 說 英文。|Wô bú huì shuō Yīngwén.|I don't speak English.|
+你 说 的 很 好。|你 說 的 很 好。|Nî shuō de hên hâo.|You speak very well.|
+我 说 的 不 好。|我 說 的 不 好。|Wô shuō de bù hâo.|I don't speak well.|
+谢谢 你。|謝謝 你。|Xièxie nî.|Thank you.|
+
 ##! deck = Unit 3::Vocab
 #可是
 #中国

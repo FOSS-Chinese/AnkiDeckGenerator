@@ -26,6 +26,7 @@ const parseInputFile = require('./main/parseInputFile')
 // Lib initialization
 const s2t = new OpenCC('s2t.json') // To convert simplified to traditional
 const t2s = new OpenCC('t2s.json') // To convert traditional to simplified
+const progressBar = new cliProgress.Bar({}, cliProgress.Presets.shades_classic);
 
 const forvo = new Forvo()
 const mdbg = new Mdbg()
@@ -135,8 +136,16 @@ async function autoGenerate(apkgFile, cmd) {
         }
     }
 
-    console.log(`Dissecting input data down to component level...`)
-    const dissectedInput = await hanziDissector.dissect(input)
+    console.log(`Dissecting input data down to component level...`) // TODO: cache
+    progressBar.start(100,0)
+    let lastDissectPercent = -1
+    const dissectedInput = await hanziDissector.dissect(input, true, (progress)=>{
+        if (progress !== lastDissectPercent) {
+            progressBar.update(progress)
+            lastDissectPercent = progress
+        }
+    })
+    progressBar.stop()
     const allChars = dissectedInput.allChars
     const allWords = dissectedInput.allWords
     const allSentences = dissectedInput.allSentences
@@ -160,14 +169,16 @@ async function autoGenerate(apkgFile, cmd) {
     const allInputHanzi = allChars.concat(allWords).concat(allSentences)
 
     for (const [i,hanziDataGroups] of allInputHanzi.entries()) { // charDataGroups={simplified:'..',traditional:'..',engligh:'..',pinyin:'..',audio:'..'}
-        for (const [key,value] of Object.entries(hanziDataGroups)) {
+        for (let [key,value] of Object.entries(hanziDataGroups)) {
             //if (value !== '{SKIP_LOOKPUP}') {
                 if (value !== '') {
                     if (!dict[hanziDataGroups.simplified])
                         dict[hanziDataGroups.simplified] = {}
-                    if (['english','pinyin'].includes(key))
-                        dict[hanziDataGroups.simplified][key] = Array.isArray(value) ? value : [value]
-                    else
+                    if (['english','pinyin'].includes(key)) {
+                        value = Array.isArray(value) ? value : [value]
+                        if (value.length > 0)
+                            dict[hanziDataGroups.simplified][key] = value
+                    } else
                         dict[hanziDataGroups.simplified][key] = value
                 }
             //}
@@ -186,7 +197,7 @@ async function autoGenerate(apkgFile, cmd) {
                     results = archChineseCache[hanzi]
                 }
                 if (results.length < 1) {
-                    console.warn(`Skipping "${hanzi}" as no result was found on ArchChinese.`)
+                    console.warn(`Skipping ${type} "${hanzi}" as no result was found on ArchChinese.`)
                     continue
                 }
             } catch(e) {
@@ -225,14 +236,14 @@ async function autoGenerate(apkgFile, cmd) {
             continue
 
         if (dict[hanzi].audio && dict[hanzi].audio.length > 0) {
-            await apkg.addMedia(dict[hanzi].audio)
+            await apkg.addMedia(dict[hanzi].audio.map(f=>`./cache/anki-audio-dl-cache/${f}`))
         } else { // TODO: implement switch to specify if forvo should still be hit even if audio was specified explicitly
             try {
                 const mediaToAdd = await forvo.downloadAudio('./cache/anki-audio-dl-cache',hanzi)
                 await apkg.addMedia(mediaToAdd)
                 dict[hanzi].audio = []
                 const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
-                dict[hanzi].audio = dict[hanzi].audio.concat(mediaToAdd)
+                dict[hanzi].audio = dict[hanzi].audio.concat(filenames)
             } catch(e) {
                 if (e.statusCode === 403)
                     console.warn(`Forvo blocked download of audio for "${hanzi}". Try again later.`)
@@ -243,7 +254,6 @@ async function autoGenerate(apkgFile, cmd) {
                 else
                     throw e
             }
-            await apkg.addMedia(dict[hanzi].audio)
         }
     }
 
@@ -279,126 +289,6 @@ async function autoGenerate(apkgFile, cmd) {
             const card = await apkg.addCard(cardToCreate)
         }
     }
-
-/*
-    /////////// Create notes+cards
-    const notes = []
-    let cardChars = chars
-    let cardWords = words
-    let cardSentences = sentences
-    if (cmd.recursiveCards) {
-        cardChars = chars.concat(extractedChars)
-        cardWords = words.concat(extractedWords)
-    }
-
-    for (const [i,char] of cardChars.entries()) {
-        let itemData = dict[char]
-        let fieldContentArr = []
-        fieldContentArr.push(char || '')
-        fieldContentArr.push(itemData.pinyin ? itemData.pinyin.join(' / ') : '')
-        fieldContentArr.push(itemData.english || '')
-        fieldContentArr.push('')
-
-        const noteToAdd = {
-            mid: model.id,
-            flds: fieldContentArr.map(item=>item.replace(/'/g,"&#39;")),
-            sfld: fields[0].name
-        }
-        const note = await apkg.addNote(noteToAdd)
-        notes.push(note)
-    }
-    const cards = []
-    for (const note of notes) {
-        for (const [i,deck] of decks.entries()) {
-            const cardToCreate = {
-                nid: note.id,
-                did: deck.baseConf.id,
-                odid: deck.baseConf.id,
-                ord: i // template index
-            }
-            const card = await apkg.addCard(cardToCreate)
-            cards.push(card)
-        }
-    }
-
-    //////////// Add media
-    let dictChars = chars
-    let dictWords = words
-    let dictSentences = sentences
-    if (cmd.recursiveDict) {
-        dictChars = chars.concat(extractedChars)
-        dictWords = words.concat(extractedWords)
-    }
-    let dict = {}
-
-    for (const [i,sentence] of sentences.entries()) {
-        try {
-            const mediaToAdd = await forvo.downloadAudio('./cache/anki-audio-dl-cache',sentence)
-            await apkg.addMedia(mediaToAdd)
-            if (!dict[sentence])
-                dict[sentence] = {}
-            dict[sentence].audio = []
-            const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
-            for (const [i,filename] of filenames.entries()) {
-                dict[sentence].audio.push(filename)
-            }
-        } catch(e) {
-            if (e.statusCode === 403)
-                console.warn(`Forvo blocked download of audio for sentence "${sentence}". Try again later.`)
-            else if (e.statusCode === 404)
-                console.warn(`Forvo audio download for sentence "${sentence}" returned a 404 Not Found.`)
-            else if (e.error.syscall === 'getaddrinfo' && e.error.code === 'ENOTFOUND')
-                console.warn(`DNS request failed. Forvo audio download for sentence "${sentence}" skipped.`)
-            else
-                throw e
-        }
-    }
-    for (const [i,word] of dictWords.entries()) {
-        try {
-            const mediaToAdd = await forvo.downloadAudio('./cache/anki-audio-dl-cache',word)
-            await apkg.addMedia(mediaToAdd)
-            if (!dict[word])
-                dict[word] = {}
-            dict[word].audio = []
-            const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
-            for (const [i,filename] of filenames.entries()) {
-                dict[word].audio.push(filename)
-            }
-        } catch(e) {
-            if (e.statusCode === 403)
-                console.warn(`Forvo blocked download of audio for word "${word}". Try again later.`)
-            else if (e.statusCode === 404)
-                console.warn(`Forvo audio download for word "${word}" returned a 404 Not Found.`)
-            else if (e.error.syscall === 'getaddrinfo' && e.error.code === 'ENOTFOUND')
-                console.warn(`DNS request failed. Forvo audio download for word "${word}" skipped.`)
-            else
-                throw e
-        }
-    }
-
-    for (const [i,char] of dictChars.entries()) {
-        try {
-            const mediaToAdd = await forvo.downloadAudio('./cache/anki-audio-dl-cache',char)
-            dict[char].audio = []
-            const filenames = mediaToAdd.map(path=>path.split(/(\\|\/)/g).pop())
-            for (const [i,filename] of filenames.entries()) {
-                dict[char].audio.push(filename)
-            }
-            await apkg.addMedia(mediaToAdd)
-        } catch(e) {
-            if (e.statusCode === 403)
-                console.warn(`Forvo blocked download of audio for char "${char}". Try again later.`)
-            else if (e.statusCode === 404)
-                console.warn(`Forvo audio download for char "${char}" returned a 404 Not Found.`)
-            else if (e.error.syscall === 'getaddrinfo' && e.error.code === 'ENOTFOUND')
-                console.warn(`DNS request failed. Forvo audio download for char "${char}" skipped.`)
-            else
-                throw e
-        }
-    }
-
-    */
-    // Add base dict
 
     const smallDict = {}
     for (const [hanzi, item] of Object.entries(dict)) {
@@ -439,7 +329,6 @@ async function autoGenerate(apkgFile, cmd) {
         apkgArchive.file(filepath, fs.createReadStream(filepath))
     }
     console.log("Archiving apkg...")
-    const progressBar = new cliProgress.Bar({}, cliProgress.Presets.shades_classic);
     progressBar.start(100,0)
     let lastPercent = -1
     const content = await apkgArchive.folder(cmd.tempFolder).generateAsync({type:"uint8array"},data=>{
@@ -450,6 +339,7 @@ async function autoGenerate(apkgFile, cmd) {
         }
     })
     progressBar.stop()
+
     await fs.writeFile(apkgFile, content)
     if (cmd.clearApkgTemp)
         await fs.remove(cmd.tempFolder)

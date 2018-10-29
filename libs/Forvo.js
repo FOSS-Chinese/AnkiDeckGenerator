@@ -73,7 +73,7 @@ class Forvo {
         else
             return this.getAudioUrlsByWord(hanzi, dialect, type)
     }
-    async downloadAudio(targetDir, hanzi, dialect='zh', type='mp3', overwrite=false, maxDls=2, sleepBetweenDls=3000) {
+    async downloadAudio(targetDir, hanzi, dialect='zh', type='mp3', overwrite=false, maxDls=2, sleepBetweenDls=500) {
         if (typeof this.cache[hanzi] !== 'undefined') {
             return this.cache[hanzi].map(item=>`${targetDir}/${item}`)
         }
@@ -113,11 +113,11 @@ class Forvo {
                 fullFilenames.push(targetFile)
             } catch(e) {
                 if (e.statusCode === 404)
-                    console.warn(`A Forvo audio download for "${hanzi}" returned a 404 Not Found.`)
+                    console.warn(`A Forvo audio download for "${hanzi}" returned a 404 Not Found.`, urlObj.url)
                 else
                     throw e
             }
-            sleep(sleepBetweenDls)
+            await sleep(sleepBetweenDls)
         }
         this.cache[hanzi] = filenames
         fs.outputJson(this.cacheIndex, this.cache)

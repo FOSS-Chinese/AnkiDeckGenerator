@@ -8,27 +8,45 @@ function sleep(ms) {
 }
 
 class ArchChinese {
-    constructor() {
+    constructor(conf={}) {
         this.baseUrl = "http://www.archchinese.com"
         this.wordSearchRoute = "getSimpSentenceWithPinyin6"
         this.sentenceSearchRoute = "getExampleAudio3"
+        this.sleepAfterSearch = conf.sleepAfterSearch || 0
     }
     async rawSearch(query, searchFor='words', limit=25, offset=0) {
-        const responseBody = await rp({
+        const res = await rp({
             method: 'POST',
-            url: `${this.baseUrl}/${searchFor==='words' ? this.wordSearchRoute : this.sentenceSearchRoute}`,
+            uri: `${this.baseUrl}/${searchFor==='words' ? this.wordSearchRoute : this.sentenceSearchRoute}`,
             formData: {
                 limit:limit.toString(),
                 offset:offset.toString(),
                 unicode: query.replace(/\s/g,'').split('').map(l=>l.charCodeAt().toString(16).toUpperCase()).join(', ')
             },
             headers: {
-                "user-agent":""
-            }
+                "content-type":"application/x-www-form-urlencoded",
+                "user-agent":"Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101 Firefox/60.0",
+                "accept-encoding":"",
+                "cache-control":"no-cache",
+                "accept":"*/*",
+                "host":"www.archchinese.com",
+                "connection":"keep-alive"
+            },
+            resolveWithFullResponse: true
         })
-        sleep(1500)
+        console.log(res)
+        console.log(res.headers)
+        console.log(res.body)
+        console.log(res.statusCode)
+        console.log(`${this.baseUrl}/${searchFor==='words' ? this.wordSearchRoute : this.sentenceSearchRoute}`)
+        console.log({
+            limit:limit.toString(),
+            offset:offset.toString(),
+            unicode: query.replace(/[，？！。；,\?\!\.\;\s]/g,'').split('').map(l=>l.charCodeAt().toString(16).toUpperCase()).join(', ')
+        })
+        await sleep(this.sleepAfterSearch)
         // 你好@你好@ni3 hao3@hello,hi,how are you?@9@短@N@[]@1276&你好吗@你好嗎@ni3 hao3 ma5@How are you?, How are you doing?@9@短@N@[]@6&
-        return responseBody
+        return body
     }
 
     /**

@@ -108,10 +108,13 @@
                 words.forEach(function(word) {
                     var wordHtml = "";
                     var chars = word.split('');
-                    chars.forEach(function() {
-                        var color = getHanziColorAtPos(hanzi, iChar);
+                    chars.forEach(function(char) {
+                        var color
+                        if (!/[，？！。；,\?\!\.\;\s]/.test(char)) {
+                            color = getHanziColorAtPos(hanzi, iChar);
+                            iChar++;
+                        }
                         wordHtml += '<span style="color:' + color + ';">' + char + '</span>';
-                        iChar++;
                     });
                     hanziHtml += '<span class="hanzi-word">' + wordHtml + '</span> ';
                 })
@@ -139,13 +142,16 @@
             var colorizedWords = "";
             var i = 0;
             wordArr.forEach(function(word) {
-                if (/[，？！。；,\?\!\.\;]/.test(word)) {
-                    colorizedWords += word + ' ';
-                } else {
-                    var color = hslToRgb(360/length*(i+1), colorSaturation, colorLightness);
-                    colorizedWords += '<span style="color:' + color + ';">' + word + '</span> ';
-                    i++;
-                }
+                var wordSplit = word.match(/[，？！。；,\?\!\.\;]|[^，？！。；,\?\!\.\;]+/g);
+                wordSplit.forEach(function(sp) {
+                    if (/[，？！。；,\?\!\.\;]/.test(sp)) {
+                        colorizedWords += sp;
+                    } else {
+                        var color = hslToRgb(360/length*(i+1), colorSaturation, colorLightness);
+                        colorizedWords += '<span style="color:' + color + ';">' + sp + '</span> ';
+                        i++;
+                    }
+                });
             });
             return colorizedWords.slice(0,-1);
         }
