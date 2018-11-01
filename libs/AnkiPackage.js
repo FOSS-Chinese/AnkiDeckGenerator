@@ -8,7 +8,7 @@ const fs = require('fs-extra')
 /*
 // BASIC IDEA (DOES NOT REPRESENT ACTUAL IMPLEMENTATION)
 apkg.addDeck(config)
-[modelId, templateIndexNumbers] = apkg.addModel(config, fields, templates)
+{modelId, templateIndexNumbers} = apkg.addModel(config, fields, templates)
 noteId = apkg.addNote(config, modelId, fields)
 cardId = apkg.addCard(config, notesId, deckId, fields, templateIndexNumber, originalDeckId) // originalDeckId is required for filtered decks
 */
@@ -434,7 +434,7 @@ class AnkiPackage {
 
             noteCfg.sfld = (!noteCfg.sfld && noteCfg.flds.length>0) ? noteCfg.sfld=noteCfg.flds[0] : noteCfg.sfld
             noteCfg.csum = parseInt('0x'+crypto.createHash('sha1').update(noteCfg.flds.length>0 ? noteCfg.flds[0] : '').digest('hex').substring(0,8))
-            
+
             this.ankiDb.exec(`
                 INSERT INTO notes
                 VALUES(

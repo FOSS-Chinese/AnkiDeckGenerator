@@ -117,12 +117,10 @@ async function autoGenerate(apkgFile, cmd) {
     }
 
     // Create sub decks, models and templates. One model per sub deck. One template per model.
-    const subDeckObjs = await createSubdeckObjects(apkg,fields,baseDeck,Object.keys(input))
-    const decks = subDeckObjs.decks
-    const models = subDeckObjs.models
+    const {decks, models} = await createSubdeckObjects(apkg,fields,baseDeck,Object.keys(input))
 
     for (const deck of decks) {
-        console.log('Created',deck.baseConf.name)
+        console.log('Created', deck.baseConf.name)
     }
 
     // Fill missing input hanzi

@@ -1,7 +1,7 @@
 # AnkiDeckGenerator
 
 Convert a list of Chinese characters/words/sentences and/or English words/sentences into an extremely powerful Anki Deck Package (apkg).
-Note: This project is still in beta at the moment.
+Note: This project is still in its beta phase at the moment.
 
 # Screenshots
 ![gif-video](screenshots/screen-recording.gif)
@@ -9,17 +9,20 @@ Note: This project is still in beta at the moment.
 ## TODO
 - [x] Make some changes to pepebecker's pinyin-split project so we can use it in the templates to properly split multi-syllable hanzi words.
 - [ ] Transpile pinyin-split to ES5 and add it to the templates
+- [ ] Rewrite template code in proper ES2018 and implement webpack to bundle and transpile it
+- [ ] Rewrite templates using React (create a feature branch first)
+- [ ] Consider adding babel to the project to make it compatible with node versions < 10 and to be able to ditch require() for import/export
 - [x] Create a Stroke order diagram generator that outputs still images with numbers
 - [x] and create a Pull Request at https://github.com/skishore/makemeahanzi adding this generator script and the generated stroke diagrams
 - [ ] Create another Pull Request for makemeahanzi with the latest generator script changes.
 - [ ] Make popup work on Windows
 - [x] Make popup work on Linux
 - [x] Make popup work on Android
+- [ ] Consider moving away from bootstrap 3
 - [x] Accept individual Chinese characters as input
 - [x] Accept Chinese words consisting of multiple characters as input
 - [x] Accept Chinese sentences consisting of multiple character as input
 - [x] Create a highly dynamic and configurable input file format
-- [ ] Fill missing data (hanzi, pinyin, audio) when only specifying English words/sentences as input
 - [x] Generate Anki card data for the Hanzi
 - [x] Generate Anki card data for the English translation
 - [x] Generate Anki card data for example words that contain a given cards Hanzi
@@ -38,10 +41,17 @@ Note: This project is still in beta at the moment.
 - [x] Copy the Hanzi stroke order diagrams into the deck output
 - [x] Write a bootstrap based Anki card template that uses all the features mentioned above
 - [x] Allow specifiying an output dir for the generated files
-- [x] Write Anki card data in Anki compatible tsv format as output
+- [x] Reverse engineer the API of archchinese.com (done, for the most part)
+- [x] Reverse engineer the audio download API of forvo.com (done, for the most part)
+- [ ] Reverse engineer the audio requesting API of forvo.com
+- [ ] Add a flag to automatically request native speaker recordings for your input file (will require a forvo.com account)
+- [x] Separate the code properly (Create dedicated classes for apkg management, forvo.com, archchinese.com, mdbg.net and MakeMeAHanzi)
+- [x] Move more code out of the index.js before it explodes
+- [x] Reverse engineer the apkg format, especially it's sqlite db structure
+- [x] Add screenshots
+- [ ] Fill missing data (hanzi, pinyin, audio) when only specifying English words/sentences as input
 - [ ] Document all features
 - [ ] Clean up for initial release
-- [ ] Add screenshots
 
 ## Requirements
 - git
