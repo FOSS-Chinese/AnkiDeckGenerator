@@ -8,7 +8,7 @@ Note: This project is still in its beta phase at the moment.
 
 ## TODO
 - [x] Make some changes to pepebecker's pinyin-split project so we can use it in the templates to properly split multi-syllable hanzi words.
-- [ ] Transpile pinyin-split to ES5 and add it to the templates
+- [x] Transpile or translate pinyin-split to ES5 and add it to the templates
 - [ ] Rewrite template code in proper ES2018 and implement webpack to bundle and transpile it
 - [ ] Rewrite templates using React (create a feature branch first)
 - [ ] Consider adding babel to the project to make it compatible with node versions < 10 and to be able to ditch require() for import/export

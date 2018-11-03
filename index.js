@@ -334,7 +334,7 @@ async function autoGenerate(apkgFile, cmd) {
     const content = await apkgArchive.folder(cmd.tempFolder).generateAsync({type:"uint8array"},data=>{
         if (data.percent !== lastPercent) {
             lastPercent = data.percent
-            progressBar.update(data.percent)
+            progressBar.update(Math.round(data.percent))
             // data.currentFile
         }
     })

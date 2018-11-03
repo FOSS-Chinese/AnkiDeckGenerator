@@ -39,6 +39,102 @@
                 }
             }
         }
+
+        var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+        var wordsData = {
+            "a": ["a", "ba", "pa", "ma", "fa", "da", "ta", "na", "la", "ga", "ka", "ha", "zha", "cha", "sha", "za", "ca", "sa"],
+            "i": ["yi", "bi", "pi", "mi", "di", "ti", "ni", "li", "ji", "qi", "xi", "zhi", "chi", "shi", "ri", "zi", "ci", "si"],
+            "o": ["o", "bo", "po", "mo", "fo", "lo"],
+            "e": ["e", "me", "de", "te", "ne", "le", "ge", "ke", "he", "zhe", "che", "she", "re", "ze", "ce", "se"],
+            "ai": ["ai", "bai", "pai", "mai", "dai", "tai", "nai", "lai", "gai", "kai", "hai", "zhai", "chai", "shai", "zai", "cai", "sai"],
+            "ei": ["ei", "bei", "pei", "mei", "fei", "dei", "tei", "nei", "lei", "gei", "kei", "hei", "zhei", "shei", "zei", "sei"],
+            "ao": ["ao", "bao", "pao", "mao", "dao", "tao", "nao", "lao", "gao", "kao", "hao", "zhao", "chao", "shao", "rao", "zao", "cao", "sao"],
+            "ou": ["ou", "pou", "mou", "dou", "fou", "tou", "nou", "lou", "gou", "kou", "hou", "zhou", "chou", "shou", "rou", "zou", "cou", "sou"],
+            "an": ["an", "ban", "pan", "man", "fan", "dan", "tan", "nan", "lan", "gan", "kan", "han", "zhan", "chan", "shan", "ran", "zan", "can", "san"],
+            "en": ["en", "ben", "pen", "men", "fen", "den", "nen", "gen", "ken", "hen", "zhen", "chen", "shen", "ren", "zen", "cen", "sen"],
+            "ang": ["ang", "bang", "pang", "mang", "fang", "dang", "tang", "nang", "lang", "gang", "kang", "hang", "zhang", "chang", "shang", "rang", "zang", "cang", "sang"],
+            "eng": ["eng", "beng", "peng", "meng", "feng", "deng", "teng", "neng", "leng", "geng", "keng", "heng", "zheng", "cheng", "sheng", "reng", "zeng", "ceng", "seng"],
+            "er": ["er", "r"],
+            "ia": ["ya", "dia", "nia", "lia", "jia", "qia", "xia"],
+            "io": ["yo"],
+            "ie": ["ye", "bie", "pie", "mie", "die", "tie", "nie", "lie", "jie", "qie", "xie"],
+            "iai": ["yai"],
+            "iao": ["yao", "biao", "piao", "miao", "fiao", "diao", "tiao", "niao", "liao", "jiao", "qiao", "xiao"],
+            "iu": ["you", "miu", "diu", "niu", "liu", "jiu", "qiu", "xiu"],
+            "ian": ["yan", "bian", "pian", "mian", "dian", "tian", "nian", "lian", "jian", "qian", "xian"],
+            "in": ["yin", "bin", "pin", "min", "nin", "lin", "jin", "qin", "xin"],
+            "iang": ["yang", "biang", "diang", "niang", "liang", "jiang", "qiang", "xiang"],
+            "ing": ["ying", "bing", "ping", "ming", "ding", "ting", "ning", "ling", "jing", "qing", "xing"],
+            "u": ["wu", "bu", "pu", "mu", "fu", "du", "tu", "nu", "lu", "gu", "ku", "hu", "zhu", "chu", "shu", "ru", "zu", "cu", "su"],
+            "ua": ["wa", "gua", "kua", "hua", "zhua", "chua", "shua", "rua"],
+            "uo": ["wo", "duo", "tuo", "nuo", "luo", "guo", "kuo", "huo", "zhuo", "chuo", "shuo", "ruo", "zuo", "cuo", "suo"],
+            "uai": ["wai", "guai", "kuai", "huai", "zhuai", "chuai", "shuai"],
+            "ui": ["wei", "dui", "tui", "gui", "kui", "hui", "zhui", "chui", "shui", "rui", "zui", "cui", "sui"],
+            "uan": ["wan", "duan", "tuan", "nuan", "luan", "guan", "kuan", "huan", "zhuan", "chuan", "shuan", "ruan", "zuan", "cuan", "suan"],
+            "un": ["wen", "dun", "tun", "nun", "lun", "gun", "kun", "hun", "zhun", "chun", "shun", "run", "zun", "cun", "sun"],
+            "uang": ["wang", "guang", "kuang", "huang", "zhuang", "chuang", "shuang"],
+            "ong": ["weng", "dong", "tong", "nong", "long", "gong", "kong", "hong", "zhong", "chong", "shong", "rong", "zong", "cong", "song"],
+            "ü": ["yu", "nü", "lü", "ju", "qu", "xu"],
+            "üe": ["yue", "nüe", "lüe", "jue", "que", "xue"],
+            "üan": ["yuan", "juan", "quan", "xuan"],
+            "ün": ["yun", "lün", "jun", "qun", "xun"],
+            "iong": ["yong", "jiong", "qiong", "xiong"]
+        };
+
+        var wordsDataVals = []
+        for(var key in wordsData) {
+            wordsDataVals.push(wordsData[key]);
+        }
+        var allWords = wordsDataVals.reduce(function (o, i) { return o.concat(i); }, []);
+
+        var pinyinCharMap = {
+            'ā':'a','á':'a','ǎ':'a','à':'a','ē':'e','é':'e','ě':'e','è':'e','ī':'i','í':'i','ǐ':'i','ì':'i',
+            'ō':'o','ó':'o','ǒ':'o','ò':'o','ū':'u','ú':'u','ǔ':'u','ù':'u','ǖ':'ü','ǘ':'ü','ǚ':'ü','ǜ':'ü',
+            'Ā':'A','Á':'A','Ǎ':'A','À':'A','Ē':'E','É':'E','Ě':'E','È':'E','Ī':'I','Í':'I','Ǐ':'I','Ì':'I',
+            'Ō':'O','Ó':'O','Ǒ':'O','Ò':'O','Ū':'U','Ú':'U','Ǔ':'U','Ù':'U','Ǖ':'Ü','Ǘ':'Ü','Ǚ':'Ü','Ǜ':'Ü'
+        }
+        function normalizePinyin(pinyin) {
+            for(var key in pinyinCharMap) {
+                pinyin = pinyin.replace(new RegExp(key,'g'),pinyinCharMap[key]);
+            }
+            return pinyin.replace(/[\u0300-\u036f]/g, '').replace(/(\w)[1-5]/g, '$1').toLowerCase();
+        }
+
+        function splitPinyin(text) {
+            var everything = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
+            var wrapInList = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
+
+            var list = [];
+            var prevWordFound = false;
+            var wordEnd = text.length;
+            while (wordEnd > 0) {
+                var count = wordEnd;
+                var wordFound = false;
+                while (count > 0) {
+                    var word = text.substring(wordEnd - count, wordEnd);
+                    if (allWords.indexOf(normalizePinyin(word)) != -1) {
+                        wordFound = true;
+                        list.push(wrapInList ? [word] : word);
+                        wordEnd -= count - 1;
+                        break;
+                    }
+                    count--;
+                }
+                if (!wordFound && everything) {
+                    var prevIndex = list.length - 1;
+                    var prevEntry = list[prevIndex];
+                    if (wordEnd === text.length || (typeof prevEntry === "undefined" ? "undefined" : _typeof(prevEntry)) === 'object' || prevWordFound) {
+                        list.push(text[wordEnd - 1]);
+                    } else if (typeof prevEntry === 'string') {
+                        list[prevIndex] = text[wordEnd - 1] + prevEntry;
+                    }
+                }
+                wordEnd--;
+                prevWordFound = wordFound;
+            }
+            return list.reverse();
+        }
+
         function hslToRgb(h, s, l) { // To generate rainbow colors
             h /= 360;
             s /= 100;
@@ -103,13 +199,13 @@
         function hanziToHtml(hanzi) {
             var hanziHtml = '';
             var iChar = 0;
-            if (hanzi.indexOf(' ')!==-1) {
+            if (hanzi.indexOf(' ')!==-1 || /[，？！。；,\?\!\.\;\s]/.test(hanzi)) {
                 var words = hanzi.split(' ');
                 words.forEach(function(word) {
                     var wordHtml = "";
                     var chars = word.split('');
                     chars.forEach(function(char) {
-                        var color
+                        var color = '#000000';
                         if (!/[，？！。；,\?\!\.\;\s]/.test(char)) {
                             color = getHanziColorAtPos(hanzi, iChar);
                             iChar++;
@@ -135,25 +231,22 @@
         }
 
         function colorizeByWord(words) {
-            var wordArr = words.split(' ');
-            var length = words.replace(/[，？！。；,\?\!\.\;]/g,'').split(' ').length;
-            if (length === 1)
+            var wordArr = splitPinyin(words,true);
+            var length = wordArr.filter(function(word){return !/[，？！。；,\?\!\.\;\s]/.test(word)}).length
+            if (words.length === 1)
                 return '<span style="color:#000000;">' + words + '</span> ';
-            var colorizedWords = "";
             var i = 0;
+            var colorizedWords = ''
             wordArr.forEach(function(word) {
-                var wordSplit = word.match(/[，？！。；,\?\!\.\;]|[^，？！。；,\?\!\.\;]+/g);
-                wordSplit.forEach(function(sp) {
-                    if (/[，？！。；,\?\!\.\;]/.test(sp)) {
-                        colorizedWords += sp;
-                    } else {
-                        var color = hslToRgb(360/length*(i+1), colorSaturation, colorLightness);
-                        colorizedWords += '<span style="color:' + color + ';">' + sp + '</span> ';
-                        i++;
-                    }
-                });
+                if (/[，？！。；,\?\!\.\;\s]/.test(word)) {
+                    colorizedWords += word;
+                } else {
+                    var color = hslToRgb(360/length*(i+1), colorSaturation, colorLightness);
+                    colorizedWords += '<span style="color:' + color + ';">' + word + '</span>';
+                    i++;
+                }
             });
-            return colorizedWords.slice(0,-1);
+            return colorizedWords; //.slice(0,-1);
         }
         function pinyinsToHtml(pinyins) {
             var pinyinHtml = '';
