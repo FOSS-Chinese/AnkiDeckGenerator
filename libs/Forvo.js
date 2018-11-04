@@ -14,7 +14,9 @@ class Forvo {
         this.mainBaseUrl = "https://forvo.com"
         this.searchRoute = "search"
         this.wordRoute = "word"
-        this.audioBaseUrl = "https://audio00.forvo.com/mp3"
+        this.audioBaseUrl = "https://audio00.forvo.com"
+        this.audioWordRoute ="/mp3"
+        this.audioPhraseRoute ="/phrases/mp3"
         this.cacheDir = cacheDir
         this.cacheIndex = `${cacheDir}/index.json`
     }
@@ -37,9 +39,10 @@ class Forvo {
             const fromTxt = $(ls).find('.from').contents().first().text()
             const name = `_${hanzi} - by ${ofLinkTxt} ${fromTxt}.${type}` //.replace(/ /g, '_')
             const onclickCode = $(el).attr('onclick')
+
             const encodedUrlCmp = onclickCode.match(/,'([^']+)'/g)[0]
             const decodedUrlCmp = Buffer.from(encodedUrlCmp, 'base64').toString('utf8')
-            const url = `${this.audioBaseUrl}/${decodedUrlCmp}`
+            const url = `${this.audioBaseUrl}/${this.audioWordRoute}/${decodedUrlCmp}`
             urls.push({url,name})
         })
         return urls
@@ -62,7 +65,7 @@ class Forvo {
             const onclickCode = el.attr('onclick')
             const encodedUrlCmp = onclickCode.match(/,'([^']+)'/g)[0]
             const decodedUrlCmp = Buffer.from(encodedUrlCmp, 'base64').toString('utf8')
-            const url = `${this.audioBaseUrl}/${decodedUrlCmp}`
+            const url = `${this.audioBaseUrl}/${this.audioPhraseRoute}/${decodedUrlCmp}`
             urls.push({url,name})
         })
         return urls

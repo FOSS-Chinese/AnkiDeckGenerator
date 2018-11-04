@@ -47,39 +47,39 @@
 我 说 的 不 好。|我 說 的 不 好。|Wǒ shuō de bù hǎo.|I don't speak well.|
 谢谢 你。|謝謝 你。|Xièxie nǐ.|Thank you.|
 
-##! deck = Unit 3::Vocab
-#可是
-#中国
-#呢
-#
-#
-##! deck = Unit 3::Example Sentences
-#可是 你 普通话 说 的 很 好。| 可是 你 普通話 說 的 很 好。| Kěshì nǐ pǔtōnghuà shuō de hěn hǎo.|But you speak Manradin very well.| {SKIP_LOOKPUP}
-#你 是 中国 人 吗？| 你 是 中國 人 嗎?| Are you Chinese?| {SKIP_LOOKPUP}
-#你 呢？| 你 呢？| Nǐ ne?| How about you?;And you?| {SKIP_LOOKPUP}
-#我 不 是 中国 人。|我 不 是 中國 人。| Wǒ bú shì Zhōngguó rén.| I'm not Chinese.| {SKIP_LOOKPUP}
-#
-##! deck = Unit 4::Vocab
-#明白
-#什么
-#学院
-#路
-#哪儿
-#在
-#街
-#长安街
-#这儿
-#那儿
-#
-##! deck = Unit 4::Example Sentences
-#我 明白。|我 明白。|Wǒ míngbai.|I understand.|{SKIP_LOOKPUP}
-#我 不 明白。|我 不 明白。|Wǒ bù míngbai.|I don't understand.|{SKIP_LOOKPUP}
-#我 不 明白 你 说 什么。|我 不 明白 你 說 什麽。|Wǒ bù míngbai nǐ shuō shénme.|I don't understand what you are saying.|{SKIP_LOOKPUP}
-#学院 路 在 哪儿？|學院 路 在 哪兒？|Xuéyuàn Lù zài nǎr?|Where is College Road?|{SKIP_LOOKPUP}
-#在 那儿。|在 那兒。|Zài nàr.|It's over there.|{SKIP_LOOKPUP}
-#长 安 街 呢？|長 安 街 呢?|Cháng Àn Jiē ne?|Where is Long Peace Street?|{SKIP_LOOKPUP}
-#是 在 这儿。|是 在 這兒。|Shì zài zhèr.|It is over there.|{SKIP_LOOKPUP}
-#在 这 儿 吗？|在 這 兒 嗎?|Shì zài zhèr ma?|Is it over here?|{SKIP_LOOKPUP}
-#
+#! deck = Unit 3::Vocab
+可是
+中国
+呢
+
+
+#! deck = Unit 3::Example Sentences
+可是 你 普通话 说 的 很 好。| 可是 你 普通話 說 的 很 好。| Kěshì nǐ pǔtōnghuà shuō de hěn hǎo.|But you speak Manradin very well.|
+你 是 中国 人 吗？| 你 是 中國 人 嗎?| Nǐ shì Zhōngguó rén ma?| Are you Chinese?|
+你 呢？| 你 呢？| Nǐ ne?| How about you?;And you?|
+我 不 是 中国 人。|我 不 是 中國 人。| Wǒ bú shì Zhōngguó rén.| I'm not Chinese.|
+
+#! deck = Unit 4::Vocab
+明白
+什么
+学院
+路
+哪儿
+在
+街
+长安街
+这儿
+那儿
+
+#! deck = Unit 4::Example Sentences
+我 明白。|我 明白。|Wǒ míngbai.|I understand.|
+我 不 明白。|我 不 明白。|Wǒ bù míngbai.|I don't understand.|
+我 不 明白 你 说 什么。|我 不 明白 你 說 什麽。|Wǒ bù míngbai nǐ shuō shénme.|I don't understand what you are saying.|
+学院 路 在 哪儿？|學院 路 在 哪兒？|Xuéyuàn Lù zài nǎr?|Where is College Road?|
+在 那儿。|在 那兒。|Zài nàr.|It's over there.|
+长 安 街 呢？|長 安 街 呢?|Cháng Àn Jiē ne?|Where is Long Peace Street?|
+是 在 这儿。|是 在 這兒。|Shì zài zhèr.|It is over there.|
+在 这 儿 吗？|在 這 兒 嗎?|Shì zài zhèr ma?|Is it over here?|
+
 ##! deck = Misc
 #不要 卖弄 你 的 电脑 水平 了 我们 都 是 行家

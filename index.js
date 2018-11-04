@@ -51,6 +51,7 @@ program
         autoGenerate(apkgFile, cmd).then(console.log).catch(err=>{
             fs.outputJson(archchineseCacheFile,archChineseCache).then(()=>{}).catch(e=>console.error) //TODO: Find a better way to prevent cache loss
             console.error(err)
+            process.exitCode = 1
         })
     })
 program.parse(process.argv)
@@ -135,7 +136,7 @@ async function autoGenerate(apkgFile, cmd) {
         }
     }
 
-    console.log(`Dissecting input data down to component level...`) // TODO: cache
+    console.log(`Dissecting input data down to component level... (Might take a while)`) // TODO: cache // TODO: load mmah dict instead of looping through file
     progressBar.start(100,0)
     let lastDissectPercent = -1
     const dissectToCmpLvl = true //TODO: make this a param
@@ -211,12 +212,12 @@ async function autoGenerate(apkgFile, cmd) {
                 console.warn(`Skipping "${hanzi}" as no match for this ${type} was found on ArchChinese.`)
                 continue
             }
-            const filteredResults = results.filter(r=>r.simplified.replace(/\s/g,'')===sentence.replace(/\s/g,'')||r.traditional.replace(/\s/g,'')===sentence.replace(/\s/g,''))
+            const filteredResults = results.filter(r=>r.simplified.replace(/\s/g,'')===hanzi.replace(/\s/g,'')||r.traditional.replace(/\s/g,'')===hanzi.replace(/\s/g,''))
             if (filteredResults.length < 1) {
                 console.warn(`Skipping "${hanzi}" as no exact match for this ${type} was found on ArchChinese.`)
                 continue
             }
-            archChineseCache[sentence] = filteredResults
+            archChineseCache[hanzi] = filteredResults
             const result = archChineseCache[hanzi][0]
             dict[hanzi].pinyin = result.pinyin
             dict[hanzi].english = result.english
@@ -266,6 +267,10 @@ async function autoGenerate(apkgFile, cmd) {
         const vocab = !cmd.recursiveCards ? input[subBaseDeck] : dissectedInput[subBaseDeck].allChars.concat(dissectedInput[subBaseDeck].allWords).concat(dissectedInput[subBaseDeck].allSentences)
         for (const [j, voc] of vocab.entries()) {
             let itemData = dict[voc.simplified]
+            if (itemData.pinyin)
+                itemData.pinyin = Array.isArray(itemData.pinyin) ? itemData.pinyin : [itemData.pinyin]
+            if (itemData.english)
+                itemData.english = Array.isArray(itemData.english) ? itemData.english : [itemData.english]
             let fieldContentArr = []
             fieldContentArr.push(itemData.simplified || '')
             fieldContentArr.push(itemData.pinyin ? itemData.pinyin.join(' / ') : '')
